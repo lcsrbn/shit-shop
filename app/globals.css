@@ -1,0 +1,204 @@
+:root{
+  --bg:#ffffff;
+  --fg:#0b0b0b;
+}
+
+html,body{height:100%}
+body{
+  margin:0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+  background: var(--bg);
+  color: var(--fg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+*{box-sizing:border-box}
+
+/* ===== stage ===== */
+.stage{
+  position:relative;
+  height:80vh;
+  border-radius:30px;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.18);
+  background: radial-gradient(1200px 700px at 20% 10%, rgba(255,255,255,.10), rgba(0,0,0,0)), #0b0b0b;
+}
+.hint{
+  position:absolute;
+  left:16px; top:16px;
+  z-index:10;
+  padding:10px 14px;
+  border-radius:999px;
+  background: rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.14);
+  backdrop-filter: blur(10px);
+  color: rgba(255,255,255,.78);
+  font-size:13px;
+}
+
+/* ===== floating card ===== */
+.fcard{
+  position:absolute;
+  transform: translate(-50%,-50%);
+  width:220px;
+  height:220px;
+  border-radius:26px;
+  background: linear-gradient(135deg,#ffffff,#f3f3f3);
+  border:1px solid rgba(0,0,0,0.06);
+  box-shadow: 0 30px 80px rgba(0,0,0,0.35);
+  padding:14px;
+  cursor:pointer;
+  user-select:none;
+}
+.fcardTop{
+  height:128px;
+  border-radius:18px;
+  overflow:hidden;
+  border:1px solid rgba(0,0,0,.08);
+  background:#fff;
+}
+.fcardTop img{ width:100%; height:100%; object-fit:cover; display:block; }
+.fcardMeta{
+  margin-top:10px;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+}
+.fcardTitle{
+  font-size:14px;
+  font-weight:900;
+  letter-spacing:-0.02em;
+  color: rgba(0,0,0,.88);
+}
+.fcardPrice{
+  margin-top:6px;
+  font-size:13px;
+  color: rgba(0,0,0,.55);
+}
+.pill{
+  font-size:12px;
+  color: rgba(0,0,0,.55);
+  border:1px solid rgba(0,0,0,.10);
+  padding:6px 10px;
+  border-radius:999px;
+  background: rgba(255,255,255,.75);
+}
+
+/* ===== overlay + expand + flip ===== */
+.overlay{
+  position:fixed;
+  inset:0;
+  z-index:80;
+  display:grid;
+  place-items:center;
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(10px);
+}
+
+.expandWrap{
+  position:fixed;
+  transition:
+    left 320ms cubic-bezier(.2,.9,.2,1),
+    top 320ms cubic-bezier(.2,.9,.2,1),
+    width 320ms cubic-bezier(.2,.9,.2,1),
+    height 320ms cubic-bezier(.2,.9,.2,1),
+    transform 320ms cubic-bezier(.2,.9,.2,1);
+  will-change: left, top, width, height, transform;
+}
+
+.flipStage{
+  position:absolute;
+  inset:0;
+  perspective: 1200px;
+}
+
+.flipCard{
+  position:absolute;
+  inset:0;
+  border-radius:26px;
+  transform-style:preserve-3d;
+  transition: transform 650ms cubic-bezier(.2,.9,.2,1);
+  box-shadow: 0 40px 120px -55px rgba(0,0,0,.8);
+}
+.flipCard.isFlipped{ transform: rotateY(180deg); }
+
+.face{
+  position:absolute;
+  inset:0;
+  border-radius:26px;
+  overflow:hidden;
+  backface-visibility:hidden;
+  background: rgba(255,255,255,.96);
+  border: 1px solid rgba(255,255,255,.18);
+}
+
+/* Top-right close (stays above content, no overlap) */
+.cardTopbar{
+  padding:14px;
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+}
+.btnGhost{
+  border:1px solid rgba(0,0,0,.12);
+  background: rgba(255,255,255,.92);
+  color:#0b0b0b;
+  border-radius:999px;
+  padding:10px 14px;
+  cursor:pointer;
+  font-size:13px;
+}
+.btnGhost:hover{ background: rgba(0,0,0,.03); }
+
+/* FRONT expanded layout */
+.frontShell{
+  height:100%;
+  display:flex;
+  flex-direction:column;
+}
+.frontBody{
+  padding:0 14px 14px;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.bigTitle{
+  font-size:26px;
+  font-weight:950;
+  letter-spacing:-0.03em;
+}
+.hero{
+  width:100%;
+  height: 440px;
+  border-radius:18px;
+  overflow:hidden;
+  border:1px solid rgba(0,0,0,.08);
+  background:#fff;
+}
+.hero img{ width:100%; height:100%; object-fit:cover; display:block; }
+.priceLine{
+  font-size:16px;
+  font-weight:900;
+}
+.desc{
+  font-size:13px;
+  color: rgba(0,0,0,.65);
+  line-height:1.45;
+}
+
+/* BACK: full image only */
+.back{
+  transform: rotateY(180deg);
+  background:#fff;
+}
+.backFull{
+  position:absolute;
+  inset:0;
+}
+.backFull img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}

@@ -1,0 +1,13 @@
+name: shit-shop
+
+services:
+  nextjs:
+    container_name: shit-shop-nextjs
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      NODE_OPTIONS: "--max-old-space-size=4096"
+    command: sh -c "npm run build && npm run start"
