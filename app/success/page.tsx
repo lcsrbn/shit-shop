@@ -1,10 +1,12 @@
+import { connection } from "next/server";
 import SuccessClient from "./SuccessClient";
 
-export default function SuccessPage() {
+export default async function SuccessPage() {
+  await connection();
+
   return (
     <main style={{ padding: 30, maxWidth: 800, margin: "0 auto" }}>
-      <div style={{ fontSize: 13, opacity: 0.65 }}>Shit Shop</div>
-
+      <div style={{ fontSize: 13, opacity: 0.65 }}>shit-shop</div>
       <h1
         style={{
           margin: "6px 0 0",
