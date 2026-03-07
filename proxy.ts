@@ -20,8 +20,11 @@ export function proxy(req: NextRequest) {
 
   const isAlwaysAllowed =
     pathname === "/maintenance" ||
+    pathname === "/success" ||
+    pathname === "/cancel" ||
     pathname.startsWith("/api/admin-login") ||
-    pathname.startsWith("/api/admin-logout");
+    pathname.startsWith("/api/admin-logout") ||
+    pathname.startsWith("/api/stripe/webhook");
 
   if (isStaticAsset || isAlwaysAllowed) {
     return NextResponse.next();
