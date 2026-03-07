@@ -19,11 +19,7 @@ function getCustomFieldValue(
 ): string | null {
   const field = fields?.find((f) => f.key === key);
   if (!field) return null;
-
-  if (field.type === "text") {
-    return field.text?.value ?? null;
-  }
-
+  if (field.type === "text") return field.text?.value ?? null;
   return null;
 }
 
@@ -104,7 +100,8 @@ export async function POST(req: Request) {
         items_json: {
           note: "Line items can be expanded later if needed",
         },
-        stripe_payload_json: session,
+
+        stripe_payload_json: JSON.parse(JSON.stringify(session)),
       };
 
       const { error } = await supabase
@@ -112,8 +109,17 @@ export async function POST(req: Request) {
         .upsert(row, { onConflict: "stripe_session_id" });
 
       if (error) {
-        console.error("Supabase insert error:", error);
-        return new Response("Database insert error", { status: 500 });
+        console.error("Supabase insert error:", {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+        });
+
+        return new Response(
+          `Database insert error: ${error.message}`,
+          { status: 500 }
+        );
       }
 
       console.log("✅ order saved", {
