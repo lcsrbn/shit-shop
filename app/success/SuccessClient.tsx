@@ -24,10 +24,10 @@ export default function SuccessClient() {
       }}
     >
       <p style={{ margin: 0, opacity: 0.8 }}>
-        Grazie per l’acquisto. Ti contatteremo con gli aggiornamenti dell’ordine.
+        Grazie per l’acquisto. Il pagamento è stato ricevuto correttamente.
       </p>
 
-      <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+      <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
         <Link
           href="/"
           style={{
