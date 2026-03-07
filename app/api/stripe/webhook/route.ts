@@ -1,23 +1,20 @@
-import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: "2024-06-20",
-});
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
     const signature = req.headers.get("stripe-signature");
 
     if (!signature) {
-      return new NextResponse("Missing stripe-signature header", { status: 400 });
+      return new Response("Missing stripe-signature header", { status: 400 });
     }
 
     if (!process.env.STRIPE_WEBHOOK_SECRET) {
-      return new NextResponse("Missing STRIPE_WEBHOOK_SECRET", { status: 500 });
+      return new Response("Missing STRIPE_WEBHOOK_SECRET", { status: 500 });
     }
 
     const payload = await req.text();
@@ -41,15 +38,15 @@ export async function POST(req: NextRequest) {
         orderId: session.metadata?.orderId ?? null,
         source: session.metadata?.source ?? null,
       });
-
-      // Più avanti qui salveremo l'ordine su database
-      // e invieremo eventuali email automatiche.
     }
 
-    return NextResponse.json({ received: true });
-  } catch (error: any) {
-    console.error("❌ Stripe webhook error:", error?.message ?? error);
-    return new NextResponse(`Webhook error: ${error?.message ?? "unknown error"}`, {
+    return Response.json({ received: true });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "unknown webhook error";
+
+    console.error("❌ Stripe webhook error:", message);
+
+    return new Response(`Webhook error: ${message}`, {
       status: 400,
     });
   }
