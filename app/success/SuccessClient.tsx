@@ -2,14 +2,24 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
-import { clearPendingOrder } from "@/lib/order";
+import {
+  clearPendingOrder,
+  readPendingOrder,
+  saveLocalOrder,
+} from "@/lib/order";
 import { useCart } from "@/lib/cart";
 
 export default function SuccessClient() {
   const cart = useCart();
 
   useEffect(() => {
-    clearPendingOrder();
+    const pending = readPendingOrder();
+
+    if (pending) {
+      saveLocalOrder(pending);
+      clearPendingOrder();
+    }
+
     cart.clear();
   }, [cart]);
 
