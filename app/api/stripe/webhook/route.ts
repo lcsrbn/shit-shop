@@ -1,9 +1,32 @@
 import Stripe from "stripe";
+import { getSupabaseServerClient } from "@/lib/supabase-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
+
+function getCustomFieldValue(
+  fields: Stripe.Checkout.Session.CustomField[] | null | undefined,
+  key: string
+): string | null {
+  const field = fields?.find((f) => f.key === key);
+  if (!field) return null;
+
+  if (field.type === "text") {
+    return field.text?.value ?? null;
+  }
+
+  return null;
+}
+
+function getPaymentIntentId(
+  paymentIntent: string | Stripe.PaymentIntent | null
+): string | null {
+  if (!paymentIntent) return null;
+  if (typeof paymentIntent === "string") return paymentIntent;
+  return paymentIntent.id ?? null;
+}
 
 export async function POST(req: Request) {
   try {
@@ -27,22 +50,71 @@ export async function POST(req: Request) {
 
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
+      const supabase = getSupabaseServerClient();
 
-      console.log("✅ checkout.session.completed", {
-        sessionId: session.id,
-        paymentStatus: session.payment_status,
-        customerEmail: session.customer_details?.email ?? null,
-        customerName: session.customer_details?.name ?? null,
-        amountTotal: session.amount_total ?? null,
+      const taxCode = getCustomFieldValue(session.custom_fields, "tax_code");
+      const orderNote = getCustomFieldValue(session.custom_fields, "order_note");
+
+      const shippingAddress = session.shipping_details?.address;
+      const shippingName =
+        session.shipping_details?.name ??
+        session.customer_details?.name ??
+        null;
+
+      const row = {
+        status: "paid",
+        order_id: session.metadata?.orderId ?? null,
+        stripe_session_id: session.id,
+        stripe_payment_intent_id: getPaymentIntentId(session.payment_intent),
+
+        customer_email:
+          session.customer_details?.email ??
+          session.customer_email ??
+          null,
+        customer_name: shippingName,
+        customer_phone: session.customer_details?.phone ?? null,
+
+        shipping_line1: shippingAddress?.line1 ?? null,
+        shipping_line2: shippingAddress?.line2 ?? null,
+        shipping_city: shippingAddress?.city ?? null,
+        shipping_state: shippingAddress?.state ?? null,
+        shipping_postal_code: shippingAddress?.postal_code ?? null,
+        shipping_country: shippingAddress?.country ?? null,
+
+        tax_code: taxCode,
+        order_note: orderNote,
+
         currency: session.currency ?? null,
+        amount_subtotal: session.amount_subtotal ?? null,
+        amount_total: session.amount_total ?? null,
+
+        items_json: {
+          note: "Line items can be expanded later if needed",
+        },
+        stripe_payload_json: session,
+      };
+
+      const { error } = await supabase
+        .from("orders")
+        .upsert(row, { onConflict: "stripe_session_id" });
+
+      if (error) {
+        console.error("Supabase insert error:", error);
+        return new Response("Database insert error", { status: 500 });
+      }
+
+      console.log("✅ order saved", {
+        stripeSessionId: session.id,
         orderId: session.metadata?.orderId ?? null,
-        source: session.metadata?.source ?? null,
+        customerEmail: session.customer_details?.email ?? null,
+        amountTotal: session.amount_total ?? null,
       });
     }
 
     return Response.json({ received: true });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "unknown webhook error";
+    const message =
+      error instanceof Error ? error.message : "unknown webhook error";
 
     console.error("❌ Stripe webhook error:", message);
 
