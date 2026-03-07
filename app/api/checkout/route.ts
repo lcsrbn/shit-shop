@@ -35,9 +35,7 @@ export async function POST(req: Request) {
     const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = body.items.map(
       ({ id, qty }) => {
         const p = products.find((x) => x.id === id);
-        if (!p) {
-          throw new Error(`Unknown product id: ${id}`);
-        }
+        if (!p) throw new Error(`Unknown product id: ${id}`);
 
         return {
           quantity: clampQty(qty),
@@ -57,6 +55,50 @@ export async function POST(req: Request) {
       line_items,
       success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/success`,
       cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/cancel`,
+
+      billing_address_collection: "required",
+      phone_number_collection: {
+        enabled: true,
+      },
+      shipping_address_collection: {
+        allowed_countries: [
+          "IT",
+          "AT",
+          "BE",
+          "DE",
+          "DK",
+          "ES",
+          "FI",
+          "FR",
+          "IE",
+          "LU",
+          "NL",
+          "PT",
+          "SE",
+        ],
+      },
+
+      custom_fields: [
+        {
+          key: "tax_code",
+          label: {
+            type: "custom",
+            custom: "Codice fiscale",
+          },
+          type: "text",
+          optional: true,
+        },
+        {
+          key: "order_note",
+          label: {
+            type: "custom",
+            custom: "Note ordine",
+          },
+          type: "text",
+          optional: true,
+        },
+      ],
+
       metadata: {
         source: "shit-shop",
         orderId: body.orderId ?? "",
@@ -66,9 +108,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ url: session.url });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Checkout error";
-
     console.error("Stripe checkout error:", message);
-
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
