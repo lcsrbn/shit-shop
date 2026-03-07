@@ -4,9 +4,12 @@ import { products } from "@/lib/products";
 
 export const runtime = "nodejs";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
+  apiVersion: "2024-06-20",
+});
 
 type ReqBody = {
+  orderId?: string;
   items: { id: string; qty: number }[];
 };
 
@@ -20,13 +23,11 @@ export async function POST(req: Request) {
     if (!process.env.STRIPE_SECRET_KEY) {
       return NextResponse.json({ error: "Missing STRIPE_SECRET_KEY" }, { status: 500 });
     }
-
     if (!process.env.NEXT_PUBLIC_SITE_URL) {
       return NextResponse.json({ error: "Missing NEXT_PUBLIC_SITE_URL" }, { status: 500 });
     }
 
     const body = (await req.json()) as ReqBody;
-
     if (!body?.items?.length) {
       return NextResponse.json({ error: "No items" }, { status: 400 });
     }
@@ -55,18 +56,17 @@ export async function POST(req: Request) {
       success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/success`,
       cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/cancel`,
       metadata: {
-        source: "floating-products-shop",
+        source: "shit-shop",
+        orderId: body.orderId ?? "",
       },
     });
 
-    if (!session.url) {
-      return NextResponse.json({ error: "Stripe session has no url" }, { status: 500 });
-    }
-
     return NextResponse.json({ url: session.url });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Checkout error";
+  } catch (err: any) {
     console.error(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: err?.message ?? "Checkout error" },
+      { status: 500 }
+    );
   }
 }

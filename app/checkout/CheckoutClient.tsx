@@ -38,6 +38,7 @@ export default function CheckoutClient() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        orderId,
         items: cart.items.map((x) => ({ id: x.id, qty: x.qty })),
       }),
     });
