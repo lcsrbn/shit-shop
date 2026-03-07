@@ -6,6 +6,13 @@ export const dynamic = "force-dynamic";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 
+type SessionWithShipping = Stripe.Checkout.Session & {
+  shipping_details?: {
+    name?: string | null;
+    address?: Stripe.Address | null;
+  } | null;
+};
+
 function getCustomFieldValue(
   fields: Stripe.Checkout.Session.CustomField[] | null | undefined,
   key: string
@@ -49,13 +56,19 @@ export async function POST(req: Request) {
     );
 
     if (event.type === "checkout.session.completed") {
-      const session = event.data.object as Stripe.Checkout.Session;
+      const rawSession = event.data.object as Stripe.Checkout.Session;
+
+      const fetchedSession = await stripe.checkout.sessions.retrieve(rawSession.id, {
+        expand: ["payment_intent"],
+      });
+
+      const session = fetchedSession as SessionWithShipping;
       const supabase = getSupabaseServerClient();
 
       const taxCode = getCustomFieldValue(session.custom_fields, "tax_code");
       const orderNote = getCustomFieldValue(session.custom_fields, "order_note");
 
-      const shippingAddress = session.shipping_details?.address;
+      const shippingAddress = session.shipping_details?.address ?? null;
       const shippingName =
         session.shipping_details?.name ??
         session.customer_details?.name ??
