@@ -22,6 +22,7 @@ export function proxy(req: NextRequest) {
     pathname === "/maintenance" ||
     pathname === "/success" ||
     pathname === "/cancel" ||
+    pathname === "/orders" ||
     pathname.startsWith("/api/admin-login") ||
     pathname.startsWith("/api/admin-logout") ||
     pathname.startsWith("/api/stripe/webhook");
