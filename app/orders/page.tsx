@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getSupabaseServerClient } from "@/lib/supabase-server";
 
 type OrderRow = {
   id: string;
@@ -22,19 +23,19 @@ type OrderRow = {
 };
 
 async function getOrders(): Promise<OrderRow[]> {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL;
-  if (!baseUrl) return [];
+  const supabase = getSupabaseServerClient();
 
-  const res = await fetch(`${baseUrl}/api/orders`, {
-    cache: "no-store",
-  });
+  const { data, error } = await supabase
+    .from("orders")
+    .select("*")
+    .order("created_at", { ascending: false });
 
-  if (!res.ok) {
+  if (error) {
+    console.error("Orders page query error:", error);
     return [];
   }
 
-  const json = (await res.json()) as { orders?: OrderRow[] };
-  return json.orders ?? [];
+  return (data as OrderRow[]) ?? [];
 }
 
 function formatMoney(cents: number | null, currency: string | null) {
@@ -170,8 +171,12 @@ export default async function OrdersPage() {
 
                 <div>
                   <div style={{ fontSize: 13, opacity: 0.65 }}>Ordine</div>
-                  <div>Stato: <b>{order.status}</b></div>
-                  <div>Totale: <b>{formatMoney(order.amount_total, order.currency)}</b></div>
+                  <div>
+                    Stato: <b>{order.status}</b>
+                  </div>
+                  <div>
+                    Totale: <b>{formatMoney(order.amount_total, order.currency)}</b>
+                  </div>
                   <div>Cod. fiscale: {order.tax_code ?? "—"}</div>
                   <div>Note: {order.order_note ?? "—"}</div>
                 </div>
