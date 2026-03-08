@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { CartProvider } from "@/lib/cart";
 import SiteChrome from "@/components/SiteChrome";
-import Header from "@/app/components/Header";
+import Header from "@/components/Header";
 
 export const metadata: Metadata = {
   title: "shit-shop",
