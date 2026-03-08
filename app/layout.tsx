@@ -17,9 +17,8 @@ export default function RootLayout({
   return (
     <html lang="it">
       <body>
-        <Header />
-        {children}
         <CartProvider>
+          <Header />
           {children}
           <SiteChrome />
         </CartProvider>
