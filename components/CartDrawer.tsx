@@ -10,6 +10,8 @@ declare global {
   }
 }
 
+const HEADER_HEIGHT = 72;
+
 export default function CartDrawer() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -43,7 +45,7 @@ export default function CartDrawer() {
           style={{
             position: "fixed",
             right: 18,
-            top: 18,
+            top: HEADER_HEIGHT + 18,
             zIndex: 9999,
             borderRadius: 999,
             border: "1px solid rgba(0,0,0,.15)",
@@ -87,7 +89,14 @@ export default function CartDrawer() {
               gap: 12,
             }}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 12,
+              }}
+            >
               <div style={{ fontSize: 20, fontWeight: 950 }}>Carrello</div>
               <button
                 onClick={() => setOpen(false)}
@@ -140,7 +149,14 @@ export default function CartDrawer() {
                       <div style={{ fontWeight: 900 }}>{product.name}</div>
                       <div style={{ fontSize: 13, opacity: 0.7 }}>€{product.priceEUR} cad.</div>
 
-                      <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: 8,
+                          marginTop: 8,
+                          alignItems: "center",
+                        }}
+                      >
                         <button
                           onClick={() => cart.setQty(product.id, Math.max(1, qty - 1))}
                           style={{
@@ -153,7 +169,9 @@ export default function CartDrawer() {
                         >
                           −
                         </button>
-                        <div style={{ minWidth: 26, textAlign: "center", fontWeight: 900 }}>{qty}</div>
+                        <div style={{ minWidth: 26, textAlign: "center", fontWeight: 900 }}>
+                          {qty}
+                        </div>
                         <button
                           onClick={() => cart.setQty(product.id, Math.min(99, qty + 1))}
                           style={{
