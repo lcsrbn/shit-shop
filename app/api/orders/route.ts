@@ -1,16 +1,20 @@
-import { NextResponse } from "next/server";
-import { getSupabaseServerClient } from "@/lib/supabase-server";
-
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
 export async function GET() {
   try {
     const supabase = getSupabaseServerClient();
 
+    // utente loggato
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ orders: [] });
+    }
+
     const { data, error } = await supabase
       .from("orders")
       .select("*")
+      .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
     if (error) {
