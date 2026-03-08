@@ -19,7 +19,6 @@ export function proxy(req: NextRequest) {
     pathname.startsWith("/images");
 
   const isAlwaysAllowed =
-  const isAlwaysAllowed =
     pathname === "/maintenance" ||
     pathname === "/success" ||
     pathname === "/cancel" ||
