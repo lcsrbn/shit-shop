@@ -2,7 +2,6 @@ export async function GET() {
   try {
     const supabase = getSupabaseServerClient();
 
-    // utente loggato
     const {
       data: { user },
     } = await supabase.auth.getUser();
