@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect } from "react";
 import {
   clearPendingOrder,
@@ -38,35 +37,39 @@ export default function SuccessClient() {
       </p>
 
       <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
-        <Link
-          href="/"
+        <button
+          onClick={() => {
+            window.location.href = "/";
+          }}
           style={{
             borderRadius: 999,
             border: "1px solid rgba(0,0,0,.12)",
             background: "#fff",
             padding: "12px 16px",
-            textDecoration: "none",
             color: "#111",
             fontWeight: 800,
+            cursor: "pointer",
           }}
         >
           Torna allo shop
-        </Link>
+        </button>
 
-        <Link
-          href="/orders"
+        <button
+          onClick={() => {
+            window.location.href = "/orders";
+          }}
           style={{
             borderRadius: 999,
             border: 0,
             background: "#0b0b0b",
             color: "#fff",
             padding: "12px 16px",
-            textDecoration: "none",
             fontWeight: 900,
+            cursor: "pointer",
           }}
         >
           Vedi ordini
-        </Link>
+        </button>
       </div>
     </div>
   );
