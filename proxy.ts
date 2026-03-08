@@ -19,10 +19,14 @@ export function proxy(req: NextRequest) {
     pathname.startsWith("/images");
 
   const isAlwaysAllowed =
+  const isAlwaysAllowed =
     pathname === "/maintenance" ||
     pathname === "/success" ||
     pathname === "/cancel" ||
     pathname === "/orders" ||
+    pathname === "/login" ||
+    pathname.startsWith("/api/orders") ||
+    pathname.startsWith("/api/logout") ||
     pathname.startsWith("/api/admin-login") ||
     pathname.startsWith("/api/admin-logout") ||
     pathname.startsWith("/api/stripe/webhook");

@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { getSupabaseServerClient } from "@/lib/supabase-server";
+import { redirect } from "next/navigation";
+import { getSupabaseServerAuthClient } from "@/lib/supabase-server-auth";
 
 type OrderRow = {
   id: string;
@@ -22,20 +23,38 @@ type OrderRow = {
   amount_total: number | null;
 };
 
-async function getOrders(): Promise<OrderRow[]> {
-  const supabase = getSupabaseServerClient();
+async function getCurrentUserAndOrders(): Promise<{
+  userEmail: string | null;
+  orders: OrderRow[];
+}> {
+  const supabase = await getSupabaseServerAuthClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
 
   const { data, error } = await supabase
     .from("orders")
     .select("*")
+    .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
   if (error) {
     console.error("Orders page query error:", error);
-    return [];
+    return {
+      userEmail: user.email ?? null,
+      orders: [],
+    };
   }
 
-  return (data as OrderRow[]) ?? [];
+  return {
+    userEmail: user.email ?? null,
+    orders: (data as OrderRow[]) ?? [],
+  };
 }
 
 function formatMoney(cents: number | null, currency: string | null) {
@@ -56,7 +75,7 @@ function formatDate(value: string) {
 }
 
 export default async function OrdersPage() {
-  const orders = await getOrders();
+  const { userEmail, orders } = await getCurrentUserAndOrders();
 
   return (
     <main style={{ padding: 30, maxWidth: 980, margin: "0 auto" }}>
@@ -69,12 +88,29 @@ export default async function OrdersPage() {
           letterSpacing: "-0.03em",
         }}
       >
-        Ordini
+        I tuoi ordini
       </h1>
 
       <p style={{ marginTop: 10, opacity: 0.75 }}>
-        Elenco ordini salvati nel database.
+        Account: {userEmail ?? "utente loggato"}
       </p>
+
+      <form action="/api/logout" method="post" style={{ marginTop: 12 }}>
+        <button
+          type="submit"
+          style={{
+            borderRadius: 999,
+            border: "1px solid rgba(0,0,0,.12)",
+            background: "#fff",
+            padding: "10px 14px",
+            color: "#111",
+            fontWeight: 800,
+            cursor: "pointer",
+          }}
+        >
+          Logout
+        </button>
+      </form>
 
       <div style={{ marginTop: 18, display: "grid", gap: 14 }}>
         {orders.length === 0 ? (
@@ -86,7 +122,9 @@ export default async function OrdersPage() {
               background: "rgba(255,255,255,.92)",
             }}
           >
-            <p style={{ margin: 0, opacity: 0.8 }}>Nessun ordine trovato.</p>
+            <p style={{ margin: 0, opacity: 0.8 }}>
+              Nessun ordine associato a questo account.
+            </p>
 
             <div style={{ marginTop: 16 }}>
               <Link

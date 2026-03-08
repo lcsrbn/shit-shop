@@ -5,5 +5,5 @@ export async function POST() {
   const supabase = await getSupabaseServerAuthClient();
   await supabase.auth.signOut();
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.redirect(new URL("/login", process.env.NEXT_PUBLIC_SITE_URL));
 }
