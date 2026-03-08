@@ -33,6 +33,22 @@ function getPaymentIntentId(
   return paymentIntent.id ?? null;
 }
 
+async function getUserIdByEmail(email: string | null): Promise<string | null> {
+  if (!email) return null;
+
+  const supabase = getSupabaseServerClient();
+
+  const { data, error } = await supabase.auth.admin.listUsers();
+
+  if (error) {
+    console.error("Supabase auth admin listUsers error:", error);
+    return null;
+  }
+
+  const match = data.users.find((user) => user.email?.toLowerCase() === email.toLowerCase());
+  return match?.id ?? null;
+}
+
 export async function POST(req: Request) {
   try {
     const signature = req.headers.get("stripe-signature");
@@ -71,6 +87,13 @@ export async function POST(req: Request) {
           ? null
           : session.payment_intent;
 
+      const customerEmail =
+        session.customer_details?.email ??
+        session.customer_email ??
+        null;
+
+      const userId = await getUserIdByEmail(customerEmail);
+
       const shippingAddress =
         session.collected_information?.shipping_details?.address ??
         session.customer_details?.address ??
@@ -89,15 +112,13 @@ export async function POST(req: Request) {
         null;
 
       const row = {
+        user_id: userId,
         status: "paid",
         order_id: session.metadata?.orderId ?? null,
         stripe_session_id: session.id,
         stripe_payment_intent_id: getPaymentIntentId(session.payment_intent),
 
-        customer_email:
-          session.customer_details?.email ??
-          session.customer_email ??
-          null,
+        customer_email: customerEmail,
         customer_name: shippingName,
         customer_phone: customerPhone,
 
@@ -142,7 +163,8 @@ export async function POST(req: Request) {
       console.log("✅ order saved", {
         stripeSessionId: session.id,
         orderId: session.metadata?.orderId ?? null,
-        customerEmail: session.customer_details?.email ?? null,
+        customerEmail,
+        userId,
         amountTotal: session.amount_total ?? null,
       });
     }

@@ -62,7 +62,7 @@ export type Product = {
     {
       id: "p_sticker_pack",
       name: "Sticker Pack",
-      priceEUR: 0.50,
+      priceEUR: 0.01,
       description: "12 sticker vinilici resistenti. Tagliati a sagoma, finitura opaca, waterproof.",
       frontImage: svgDataUri("#22c55e", "#14b8a6", "Stickers", "rgba(255,255,255,0.18)"),
       backImage: svgBackUri("#0ea5e9", "#22c55e", "Sticker Pack"),
