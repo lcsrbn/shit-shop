@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { CartProvider } from "@/lib/cart";
 import SiteChrome from "@/components/SiteChrome";
+import Header from "@/app/components/Header";
 
 export const metadata: Metadata = {
   title: "shit-shop",
@@ -16,6 +17,8 @@ export default function RootLayout({
   return (
     <html lang="it">
       <body>
+        <Header />
+        {children}
         <CartProvider>
           {children}
           <SiteChrome />
