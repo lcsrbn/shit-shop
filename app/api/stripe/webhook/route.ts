@@ -6,10 +6,12 @@ export const dynamic = "force-dynamic";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 
-type SessionWithShipping = Stripe.Checkout.Session & {
-  shipping_details?: {
-    name?: string | null;
-    address?: Stripe.Address | null;
+type SessionWithExtras = Stripe.Checkout.Session & {
+  collected_information?: {
+    shipping_details?: {
+      name?: string | null;
+      address?: Stripe.Address | null;
+    } | null;
   } | null;
 };
 
@@ -58,16 +60,32 @@ export async function POST(req: Request) {
         expand: ["payment_intent"],
       });
 
-      const session = fetchedSession as SessionWithShipping;
+      const session = fetchedSession as SessionWithExtras;
       const supabase = getSupabaseServerClient();
 
       const taxCode = getCustomFieldValue(session.custom_fields, "tax_code");
       const orderNote = getCustomFieldValue(session.custom_fields, "order_note");
 
-      const shippingAddress = session.shipping_details?.address ?? null;
+      const paymentIntent =
+        typeof session.payment_intent === "string" || !session.payment_intent
+          ? null
+          : session.payment_intent;
+
+      const shippingAddress =
+        session.collected_information?.shipping_details?.address ??
+        session.customer_details?.address ??
+        paymentIntent?.shipping?.address ??
+        null;
+
       const shippingName =
-        session.shipping_details?.name ??
+        session.collected_information?.shipping_details?.name ??
         session.customer_details?.name ??
+        paymentIntent?.shipping?.name ??
+        null;
+
+      const customerPhone =
+        session.customer_details?.phone ??
+        paymentIntent?.shipping?.phone ??
         null;
 
       const row = {
@@ -81,7 +99,7 @@ export async function POST(req: Request) {
           session.customer_email ??
           null,
         customer_name: shippingName,
-        customer_phone: session.customer_details?.phone ?? null,
+        customer_phone: customerPhone,
 
         shipping_line1: shippingAddress?.line1 ?? null,
         shipping_line2: shippingAddress?.line2 ?? null,
@@ -116,10 +134,9 @@ export async function POST(req: Request) {
           code: error.code,
         });
 
-        return new Response(
-          `Database insert error: ${error.message}`,
-          { status: 500 }
-        );
+        return new Response(`Database insert error: ${error.message}`, {
+          status: 500,
+        });
       }
 
       console.log("✅ order saved", {
