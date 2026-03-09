@@ -1,85 +1,54 @@
+"use client";
+
+import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { getSupabaseServerClient } from "@/lib/supabase-server";
 
-export default async function Header() {
-  const supabase = getSupabaseServerClient();
+export default function Header() {
+  const pathname = usePathname();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  if (pathname === "/maintenance") {
+    return null;
+  }
 
   return (
     <header
       style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: "18px 28px",
+        position: "sticky",
+        top: 0,
+        zIndex: 1000,
+        backdropFilter: "blur(10px)",
+        background: "rgba(255,255,255,.85)",
         borderBottom: "1px solid rgba(0,0,0,.08)",
-        background: "#fff",
       }}
     >
-      <Link
-        href="/"
+      <div
         style={{
-          fontWeight: 900,
-          textDecoration: "none",
-          color: "#111",
+          maxWidth: 1100,
+          margin: "0 auto",
+          padding: "14px 20px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
         }}
       >
-        shit-shop
-      </Link>
+        <Link
+          href="/"
+          style={{
+            textDecoration: "none",
+            color: "#111",
+            fontWeight: 900,
+            letterSpacing: "-0.02em",
+          }}
+        >
+          shit-shop
+        </Link>
 
-      <nav style={{ display: "flex", gap: 14 }}>
-        {!user && (
-          <Link
-            href="/login"
-            style={{
-              padding: "8px 14px",
-              borderRadius: 999,
-              border: "1px solid rgba(0,0,0,.12)",
-              textDecoration: "none",
-              color: "#111",
-              fontWeight: 700,
-            }}
-          >
-            Login
-          </Link>
-        )}
-
-        {user && (
-          <>
-            <Link
-              href="/orders"
-              style={{
-                padding: "8px 14px",
-                borderRadius: 999,
-                border: "1px solid rgba(0,0,0,.12)",
-                textDecoration: "none",
-                color: "#111",
-                fontWeight: 700,
-              }}
-            >
-              I tuoi ordini
-            </Link>
-
-            <form action="/api/logout" method="post">
-              <button
-                style={{
-                  padding: "8px 14px",
-                  borderRadius: 999,
-                  border: "1px solid rgba(0,0,0,.12)",
-                  background: "#fff",
-                  cursor: "pointer",
-                  fontWeight: 700,
-                }}
-              >
-                Logout
-              </button>
-            </form>
-          </>
-        )}
-      </nav>
+        <nav style={{ display: "flex", gap: 14 }}>
+          <Link href="/orders">Ordini</Link>
+          <Link href="/login">Login</Link>
+          <Link href="/admin/orders">Admin</Link>
+        </nav>
+      </div>
     </header>
   );
 }

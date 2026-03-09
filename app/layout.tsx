@@ -9,6 +9,16 @@ export const metadata: Metadata = {
   description: "shit-shop",
 };
 
+function LayoutInner({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <Header />
+      {children}
+      <SiteChrome />
+    </>
+  );
+}
+
 export default function RootLayout({
   children,
 }: {
@@ -18,9 +28,7 @@ export default function RootLayout({
     <html lang="it">
       <body>
         <CartProvider>
-          <Header />
-          {children}
-          <SiteChrome />
+          <LayoutInner>{children}</LayoutInner>
         </CartProvider>
       </body>
     </html>
