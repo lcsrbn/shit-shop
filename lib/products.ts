@@ -1,102 +1,167 @@
-export type Product = {
-    id: string;
-    name: string;
-    priceEUR: number;
-    description?: string;
-    frontImage: string; // shown on floating cards
-    backImage: string;  // shown on expanded back side (different)
+import type { ProductBase, ProductLegacyCompatible } from "@/lib/product-types";
+
+const rawProducts: ProductBase[] = [
+  {
+    id: "poster-chaos",
+    slug: "poster-chaos",
+    name: "Chaos Poster",
+    description: "Poster sperimentale per interni.",
+    coverImage: "/products/poster-chaos/front.jpg",
+    galleryImages: [
+      "/products/poster-chaos/front.jpg",
+      "/products/poster-chaos/back.jpg",
+      "/products/poster-chaos/detail-1.jpg",
+    ],
+    variants: [
+      {
+        id: "poster-chaos-a4",
+        name: "A4",
+        sku: "CHAOS-A4",
+        priceEUR: 0.5,
+        stock: 25,
+        images: [
+          "/products/poster-chaos/front.jpg",
+          "/products/poster-chaos/back.jpg",
+        ],
+        isDefault: true,
+      },
+      {
+        id: "poster-chaos-a3",
+        name: "A3",
+        sku: "CHAOS-A3",
+        priceEUR: 18,
+        stock: 12,
+        images: [
+          "/products/poster-chaos/front.jpg",
+          "/products/poster-chaos/back.jpg",
+        ],
+      },
+    ],
+  },
+  {
+    id: "poster-noise",
+    slug: "poster-noise",
+    name: "Noise Poster",
+    description: "Poster grafico ad alto contrasto.",
+    coverImage: "/products/poster-noise/front.jpg",
+    galleryImages: [
+      "/products/poster-noise/front.jpg",
+      "/products/poster-noise/back.jpg",
+      "/products/poster-noise/detail-1.jpg",
+    ],
+    variants: [
+      {
+        id: "poster-noise-a4",
+        name: "A4",
+        sku: "NOISE-A4",
+        priceEUR: 16,
+        stock: 18,
+        images: [
+          "/products/poster-noise/front.jpg",
+          "/products/poster-noise/back.jpg",
+        ],
+        isDefault: true,
+      },
+      {
+        id: "poster-noise-a3",
+        name: "A3",
+        sku: "NOISE-A3",
+        priceEUR: 24,
+        stock: 8,
+        images: [
+          "/products/poster-noise/front.jpg",
+          "/products/poster-noise/back.jpg",
+        ],
+      },
+    ],
+  },
+  {
+    id: "poster-fragment",
+    slug: "poster-fragment",
+    name: "Fragment Poster",
+    description: "Poster visivo con composizione astratta.",
+    coverImage: "/products/poster-fragment/front.jpg",
+    galleryImages: [
+      "/products/poster-fragment/front.jpg",
+      "/products/poster-fragment/back.jpg",
+      "/products/poster-fragment/detail-1.jpg",
+    ],
+    variants: [
+      {
+        id: "poster-fragment-a4",
+        name: "A4",
+        sku: "FRAGMENT-A4",
+        priceEUR: 14,
+        stock: 30,
+        images: [
+          "/products/poster-fragment/front.jpg",
+          "/products/poster-fragment/back.jpg",
+        ],
+        isDefault: true,
+      },
+      {
+        id: "poster-fragment-a3",
+        name: "A3",
+        sku: "FRAGMENT-A3",
+        priceEUR: 22,
+        stock: 10,
+        images: [
+          "/products/poster-fragment/front.jpg",
+          "/products/poster-fragment/back.jpg",
+        ],
+      },
+    ],
+  },
+];
+
+function getDefaultVariant(product: ProductBase) {
+  return (
+    product.variants.find((variant) => variant.isDefault) ??
+    product.variants[0]
+  );
+}
+
+export const products: ProductLegacyCompatible[] = rawProducts.map((product) => {
+  const defaultVariant = getDefaultVariant(product);
+
+  return {
+    ...product,
+    defaultVariantId: defaultVariant.id,
+
+    // campi legacy mantenuti per non rompere il codice attuale
+    priceEUR: defaultVariant.priceEUR,
+    frontImage: defaultVariant.images[0] ?? product.coverImage,
+    backImage:
+      defaultVariant.images[1] ??
+      product.galleryImages[1] ??
+      product.coverImage,
   };
-  
-  function svgDataUri(bg1: string, bg2: string, label: string, accent: string) {
-    const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200">
-      <defs>
-        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="${bg1}"/>
-          <stop offset="1" stop-color="${bg2}"/>
-        </linearGradient>
-        <filter id="n">
-          <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="2" stitchTiles="stitch"/>
-          <feColorMatrix type="saturate" values="0"/>
-          <feComponentTransfer><feFuncA type="table" tableValues="0 0.12"/></feComponentTransfer>
-        </filter>
-      </defs>
-      <rect width="900" height="1200" fill="url(#g)"/>
-      <rect width="900" height="1200" filter="url(#n)"/>
-      <g>
-        <rect x="70" y="120" width="760" height="520" rx="60" fill="${accent}" opacity="0.92"/>
-        <circle cx="240" cy="390" r="160" fill="rgba(255,255,255,0.85)"/>
-        <rect x="260" y="240" width="520" height="90" rx="45" fill="rgba(255,255,255,0.75)"/>
-      </g>
-      <text x="70" y="1090" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto" font-size="60" fill="rgba(255,255,255,0.92)">${label}</text>
-    </svg>`;
-    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-  }
-  
-  function svgBackUri(bg1: string, bg2: string, label: string) {
-    const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="1400" height="900">
-      <defs>
-        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="${bg1}"/>
-          <stop offset="1" stop-color="${bg2}"/>
-        </linearGradient>
-        <filter id="n">
-          <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="2" stitchTiles="stitch"/>
-          <feComponentTransfer><feFuncA type="table" tableValues="0 0.10"/></feComponentTransfer>
-        </filter>
-      </defs>
-      <rect width="1400" height="900" fill="url(#g)"/>
-      <rect width="1400" height="900" filter="url(#n)"/>
-      <g fill="rgba(255,255,255,0.88)">
-        <circle cx="1080" cy="260" r="170"/>
-        <circle cx="380" cy="640" r="240"/>
-        <rect x="160" y="120" width="820" height="110" rx="55"/>
-      </g>
-      <text x="70" y="830" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto" font-size="64" fill="rgba(255,255,255,0.92)">${label} — details</text>
-    </svg>`;
-    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-  }
-  
-  export const products: Product[] = [
-    {
-      id: "p_sticker_pack",
-      name: "Sticker Pack",
-      priceEUR: 0.50,
-      description: "12 sticker vinilici resistenti. Tagliati a sagoma, finitura opaca, waterproof.",
-      frontImage: svgDataUri("#22c55e", "#14b8a6", "Stickers", "rgba(255,255,255,0.18)"),
-      backImage: svgBackUri("#0ea5e9", "#22c55e", "Sticker Pack"),
-    },
-    {
-      id: "p_aurora_print",
-      name: "Aurora Print",
-      priceEUR: 24,
-      description: "Stampa matte 200gsm. Toni freddi, grana morbida, resa pulita su pareti chiare.",
-      frontImage: svgDataUri("#4f46e5", "#06b6d4", "Aurora", "rgba(255,255,255,0.16)"),
-      backImage: svgBackUri("#111827", "#06b6d4", "Aurora Print"),
-    },
-    {
-      id: "p_mono_poster",
-      name: "Mono Poster",
-      priceEUR: 18,
-      description: "Poster minimal con contrasto delicato. Perfetto per set-up studio e cornici sottili.",
-      frontImage: svgDataUri("#111827", "#6b7280", "Mono", "rgba(255,255,255,0.14)"),
-      backImage: svgBackUri("#0f172a", "#7c3aed", "Mono Poster"),
-    },
-    {
-      id: "p_night_zine",
-      name: "Night Zine",
-      priceEUR: 12,
-      description: "Zine 32 pagine, rilegatura a punto metallico. Mood scuro, ritmo editoriale.",
-      frontImage: svgDataUri("#0f172a", "#7c3aed", "Night", "rgba(255,255,255,0.14)"),
-      backImage: svgBackUri("#111827", "#ef4444", "Night Zine"),
-    },
-    {
-      id: "p_canvas_wave",
-      name: "Canvas Wave",
-      priceEUR: 48,
-      description: "Canvas 30×40, stampa pigmentata. Colori profondi, look caldo e materico.",
-      frontImage: svgDataUri("#0ea5e9", "#22c55e", "Wave", "rgba(255,255,255,0.16)"),
-      backImage: svgBackUri("#0ea5e9", "#f59e0b", "Canvas Wave"),
-    },
-  ];
+});
+
+export function getProductById(id: string) {
+  return products.find((product) => product.id === id) ?? null;
+}
+
+export function getVariantById(productId: string, variantId: string) {
+  const product = getProductById(productId);
+  if (!product) return null;
+
+  return product.variants.find((variant) => variant.id === variantId) ?? null;
+}
+
+export function getDefaultVariantByProductId(productId: string) {
+  const product = getProductById(productId);
+  if (!product) return null;
+
+  return (
+    product.variants.find((variant) => variant.id === product.defaultVariantId) ??
+    product.variants[0] ??
+    null
+  );
+}
+
+export function isProductInStock(productId: string) {
+  const variant = getDefaultVariantByProductId(productId);
+  if (!variant) return false;
+  return variant.stock > 0;
+}
