@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { products, type Product } from "@/lib/products";
+import {
+  products,
+  type Product,
+  getDefaultVariantByProductId,
+} from "@/lib/products";
 import { useCart } from "@/lib/cart";
 
 type Body = {
@@ -18,6 +22,7 @@ type Body = {
 function rand(min: number, max: number) {
   return Math.random() * (max - min) + min;
 }
+
 function clamp(v: number, a: number, b: number) {
   return Math.max(a, Math.min(b, v));
 }
@@ -330,7 +335,7 @@ export default function FloatingProducts() {
             <div className="fcardMeta">
               <div>
                 <div className="fcardTitle">{b.product.name}</div>
-                <div className="fcardPrice">€{b.product.priceEUR}</div>
+                <div className="fcardPrice">€{b.product.priceEUR.toFixed(2)}</div>
               </div>
               <div className="pill">open</div>
             </div>
@@ -356,7 +361,6 @@ export default function FloatingProducts() {
           >
             <div className="flipStage">
               <div className={`flipCard ${overlay.flipped ? "isFlipped" : ""}`} onClick={toggleFlip}>
-                {/* FRONT */}
                 <div className="face frontShell">
                   <div className="cardTopbar">
                     <button
@@ -377,15 +381,23 @@ export default function FloatingProducts() {
                       <img src={overlay.product.frontImage} alt={overlay.product.name} />
                     </div>
 
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-                      <div className="priceLine">€ {overlay.product.priceEUR}</div>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: 12,
+                      }}
+                    >
+                      <div className="priceLine">€ {overlay.product.priceEUR.toFixed(2)}</div>
 
-                      {/* qty stepper */}
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setOverlay((prev) => (prev.open ? { ...prev, qty: Math.max(1, prev.qty - 1) } : prev));
+                            setOverlay((prev) =>
+                              prev.open ? { ...prev, qty: Math.max(1, prev.qty - 1) } : prev
+                            );
                           }}
                           style={{
                             borderRadius: 10,
@@ -397,11 +409,17 @@ export default function FloatingProducts() {
                         >
                           −
                         </button>
-                        <div style={{ minWidth: 26, textAlign: "center", fontWeight: 900 }}>{overlay.qty}</div>
+
+                        <div style={{ minWidth: 26, textAlign: "center", fontWeight: 900 }}>
+                          {overlay.qty}
+                        </div>
+
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setOverlay((prev) => (prev.open ? { ...prev, qty: Math.min(99, prev.qty + 1) } : prev));
+                            setOverlay((prev) =>
+                              prev.open ? { ...prev, qty: Math.min(99, prev.qty + 1) } : prev
+                            );
                           }}
                           style={{
                             borderRadius: 10,
@@ -419,41 +437,45 @@ export default function FloatingProducts() {
                     <div className="desc">{overlay.product.description ?? ""}</div>
 
                     <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        cart.add(overlay.product.id, overlay.qty);
-                      
-                        // chiudi overlay
-                        setOverlay({ open: false });
-                      
-                        // apri carrello
-                        setTimeout(() => {
-                          window.__openCart?.();
-                        }, 50);
-                      }}
-                      style={{
-                        width: "100%",
-                        borderRadius: 999,
-                        border: 0,
-                        background: "#0b0b0b",
-                        color: "#fff",
-                        padding: "12px 14px",
-                        cursor: "pointer",
-                        fontWeight: 950,
-                      }}
-                    >
-                      Aggiungi al carrello
-                    </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+
+                          const defaultVariant = getDefaultVariantByProductId(overlay.product.id);
+                          if (!defaultVariant) {
+                            alert("Variante di default non trovata");
+                            return;
+                          }
+
+                          cart.add(overlay.product.id, defaultVariant.id, overlay.qty);
+
+                          setOverlay({ open: false });
+
+                          setTimeout(() => {
+                            window.__openCart?.();
+                          }, 50);
+                        }}
+                        style={{
+                          width: "100%",
+                          borderRadius: 999,
+                          border: 0,
+                          background: "#0b0b0b",
+                          color: "#fff",
+                          padding: "12px 14px",
+                          cursor: "pointer",
+                          fontWeight: 950,
+                        }}
+                      >
+                        Aggiungi al carrello
+                      </button>
                     </div>
 
                     <div style={{ marginTop: 8, fontSize: 12, opacity: 0.65 }}>
-                      Checkout dal carrello (pulsante 🛒 in basso a destra).
+                      Checkout dal carrello.
                     </div>
                   </div>
                 </div>
 
-                {/* BACK: full secondary image */}
                 <div className="face back">
                   <div className="cardTopbar">
                     <button
@@ -466,8 +488,12 @@ export default function FloatingProducts() {
                       Chiudi
                     </button>
                   </div>
+
                   <div className="backFull">
-                    <img src={overlay.product.backImage} alt={`${overlay.product.name} secondary`} />
+                    <img
+                      src={overlay.product.backImage}
+                      alt={`${overlay.product.name} secondary`}
+                    />
                   </div>
                 </div>
               </div>
