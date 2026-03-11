@@ -1,6 +1,6 @@
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
-import { products } from "@/lib/products";
+import { getProductById, getVariantById } from "@/lib/products";
 
 export const runtime = "nodejs";
 
@@ -8,7 +8,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 
 type ReqBody = {
   orderId?: string;
-  items: { id: string; qty: number }[];
+  items: { id: string; variantId: string; qty: number }[];
 };
 
 function clampQty(q: number) {
@@ -33,17 +33,25 @@ export async function POST(req: Request) {
     }
 
     const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = body.items.map(
-      ({ id, qty }) => {
-        const p = products.find((x) => x.id === id);
-        if (!p) throw new Error(`Unknown product id: ${id}`);
+      ({ id, variantId, qty }) => {
+        const product = getProductById(id);
+        const variant = getVariantById(id, variantId);
+
+        if (!product) {
+          throw new Error(`Unknown product id: ${id}`);
+        }
+
+        if (!variant) {
+          throw new Error(`Unknown variant id: ${variantId} for product ${id}`);
+        }
 
         return {
           quantity: clampQty(qty),
           price_data: {
             currency: "eur",
-            unit_amount: Math.round(p.priceEUR * 100),
+            unit_amount: Math.round(variant.priceEUR * 100),
             product_data: {
-              name: p.name,
+              name: `${product.name} · ${variant.name}`,
             },
           },
         };

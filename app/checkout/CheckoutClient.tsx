@@ -32,6 +32,7 @@ export default function CheckoutClient() {
       createdAt: Date.now(),
       items: cart.items.map((x) => ({
         id: x.productId,
+        variantId: x.variantId,
         qty: x.qty,
       })),
       subtotalEUR: cart.subtotalEUR,
@@ -44,6 +45,7 @@ export default function CheckoutClient() {
         orderId,
         items: cart.items.map((x) => ({
           id: x.productId,
+          variantId: x.variantId,
           qty: x.qty,
         })),
       }),
