@@ -1,14 +1,21 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { products } from "@/lib/products";
+import { getProductById, getVariantById, products } from "@/lib/products";
 
-export type CartItem = { id: string; qty: number };
+export type CartItem = {
+  productId: string;
+  variantId: string;
+  qty: number;
+};
 
 type CartDetailedItem = {
-  id: string;
+  key: string;
+  productId: string;
+  variantId: string;
   qty: number;
   product: (typeof products)[number];
+  variant: NonNullable<ReturnType<typeof getVariantById>>;
   lineEUR: number;
 };
 
@@ -19,25 +26,43 @@ type CartApi = {
   subtotalEUR: number;
   ready: boolean;
 
-  add: (id: string, qty?: number) => void;
-  setQty: (id: string, qty: number) => void;
-  remove: (id: string) => void;
+  add: (productId: string, variantId: string, qty?: number) => void;
+  setQty: (productId: string, variantId: string, qty: number) => void;
+  remove: (productId: string, variantId: string) => void;
   clear: () => void;
   replaceAll: (items: CartItem[]) => void;
 };
 
 const CartCtx = createContext<CartApi | null>(null);
 
-const STORAGE_KEY = "floating_shop_cart_v2";
+const STORAGE_KEY = "floating_shop_cart_v3";
 const BC_NAME = "floating_shop_cart_bc";
+
+function itemKey(productId: string, variantId: string) {
+  return `${productId}__${variantId}`;
+}
 
 function normalize(items: CartItem[]): CartItem[] {
   const clean = (items ?? [])
-    .filter((x) => x && typeof x.id === "string")
-    .map((x) => ({ id: x.id, qty: Math.max(1, Math.min(99, Math.floor(Number(x.qty)))) }))
+    .filter(
+      (x) =>
+        x &&
+        typeof x.productId === "string" &&
+        typeof x.variantId === "string"
+    )
+    .map((x) => ({
+      productId: x.productId,
+      variantId: x.variantId,
+      qty: Math.max(1, Math.min(99, Math.floor(Number(x.qty)))),
+    }))
     .filter((x) => Number.isFinite(x.qty) && x.qty > 0);
 
-  clean.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  clean.sort((a, b) => {
+    const ak = itemKey(a.productId, a.variantId);
+    const bk = itemKey(b.productId, b.variantId);
+    return ak < bk ? -1 : ak > bk ? 1 : 0;
+  });
+
   return clean;
 }
 
@@ -46,7 +71,7 @@ function safeParse(raw: string | null): CartItem[] {
   try {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return normalize(parsed as any);
+    return normalize(parsed as CartItem[]);
   } catch {
     return [];
   }
@@ -123,41 +148,71 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
     const detailedItems: CartDetailedItem[] = norm
       .map((it) => {
-        const product = products.find((p) => p.id === it.id);
-        if (!product) return null;
-        return { id: it.id, qty: it.qty, product, lineEUR: product.priceEUR * it.qty };
+        const product = getProductById(it.productId);
+        const variant = getVariantById(it.productId, it.variantId);
+
+        if (!product || !variant) return null;
+
+        return {
+          key: itemKey(it.productId, it.variantId),
+          productId: it.productId,
+          variantId: it.variantId,
+          qty: it.qty,
+          product,
+          variant,
+          lineEUR: variant.priceEUR * it.qty,
+        };
       })
       .filter(Boolean) as CartDetailedItem[];
 
     const count = norm.reduce((acc, it) => acc + it.qty, 0);
     const subtotalEUR = detailedItems.reduce((acc, it) => acc + it.lineEUR, 0);
 
-    function add(id: string, qty = 1) {
+    function add(productId: string, variantId: string, qty = 1) {
       const q = Math.max(1, Math.min(99, Math.floor(qty)));
+
       setItems((prev) => {
         const base = normalize(prev);
-        const idx = base.findIndex((x) => x.id === id);
-        if (idx === -1) return normalize([...base, { id, qty: q }]);
+        const idx = base.findIndex(
+          (x) => x.productId === productId && x.variantId === variantId
+        );
+
+        if (idx === -1) {
+          return normalize([...base, { productId, variantId, qty: q }]);
+        }
+
         const next = [...base];
-        next[idx] = { ...next[idx], qty: Math.min(99, next[idx].qty + q) };
+        next[idx] = {
+          ...next[idx],
+          qty: Math.min(99, next[idx].qty + q),
+        };
         return normalize(next);
       });
     }
 
-    function setQty(id: string, qty: number) {
+    function setQty(productId: string, variantId: string, qty: number) {
       const q = Math.max(1, Math.min(99, Math.floor(qty)));
+
       setItems((prev) => {
         const base = normalize(prev);
-        const idx = base.findIndex((x) => x.id === id);
+        const idx = base.findIndex(
+          (x) => x.productId === productId && x.variantId === variantId
+        );
+
         if (idx === -1) return base;
+
         const next = [...base];
         next[idx] = { ...next[idx], qty: q };
         return normalize(next);
       });
     }
 
-    function remove(id: string) {
-      setItems((prev) => normalize(prev).filter((x) => x.id !== id));
+    function remove(productId: string, variantId: string) {
+      setItems((prev) =>
+        normalize(prev).filter(
+          (x) => !(x.productId === productId && x.variantId === variantId)
+        )
+      );
     }
 
     function clear() {
@@ -168,7 +223,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       setItems(normalize(nextItems));
     }
 
-    return { items: norm, detailedItems, count, subtotalEUR, ready, add, setQty, remove, clear, replaceAll };
+    return {
+      items: norm,
+      detailedItems,
+      count,
+      subtotalEUR,
+      ready,
+      add,
+      setQty,
+      remove,
+      clear,
+      replaceAll,
+    };
   }, [items, ready]);
 
   return <CartCtx.Provider value={api}>{children}</CartCtx.Provider>;

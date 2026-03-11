@@ -116,9 +116,9 @@ export default function CartDrawer() {
               {cart.detailedItems.length === 0 ? (
                 <div style={{ opacity: 0.7 }}>Il carrello è vuoto.</div>
               ) : (
-                cart.detailedItems.map(({ product, qty, lineEUR }) => (
+                cart.detailedItems.map(({ key, product, variant, qty, lineEUR }) => (
                   <div
-                    key={product.id}
+                    key={key}
                     style={{
                       display: "grid",
                       gridTemplateColumns: "72px 1fr auto",
@@ -139,7 +139,7 @@ export default function CartDrawer() {
                       }}
                     >
                       <img
-                        src={product.frontImage}
+                        src={variant.images[0] ?? product.frontImage}
                         alt={product.name}
                         style={{ width: "100%", height: "100%", objectFit: "cover" }}
                       />
@@ -147,7 +147,12 @@ export default function CartDrawer() {
 
                     <div>
                       <div style={{ fontWeight: 900 }}>{product.name}</div>
-                      <div style={{ fontSize: 13, opacity: 0.7 }}>€{product.priceEUR} cad.</div>
+                      <div style={{ fontSize: 13, opacity: 0.7 }}>
+                        Variante: {variant.name}
+                      </div>
+                      <div style={{ fontSize: 13, opacity: 0.7 }}>
+                        €{variant.priceEUR.toFixed(2)} cad.
+                      </div>
 
                       <div
                         style={{
@@ -158,7 +163,9 @@ export default function CartDrawer() {
                         }}
                       >
                         <button
-                          onClick={() => cart.setQty(product.id, Math.max(1, qty - 1))}
+                          onClick={() =>
+                            cart.setQty(product.id, variant.id, Math.max(1, qty - 1))
+                          }
                           style={{
                             borderRadius: 10,
                             border: "1px solid rgba(0,0,0,.12)",
@@ -169,11 +176,15 @@ export default function CartDrawer() {
                         >
                           −
                         </button>
+
                         <div style={{ minWidth: 26, textAlign: "center", fontWeight: 900 }}>
                           {qty}
                         </div>
+
                         <button
-                          onClick={() => cart.setQty(product.id, Math.min(99, qty + 1))}
+                          onClick={() =>
+                            cart.setQty(product.id, variant.id, Math.min(99, qty + 1))
+                          }
                           style={{
                             borderRadius: 10,
                             border: "1px solid rgba(0,0,0,.12)",
@@ -186,7 +197,7 @@ export default function CartDrawer() {
                         </button>
 
                         <button
-                          onClick={() => cart.remove(product.id)}
+                          onClick={() => cart.remove(product.id, variant.id)}
                           style={{
                             marginLeft: 6,
                             borderRadius: 10,
