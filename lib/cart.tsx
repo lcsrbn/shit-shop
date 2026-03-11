@@ -1,9 +1,20 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { getProductById, getVariantById, products } from "@/lib/products";
+import {
+  getDefaultVariantByProductId,
+  getProductById,
+  getVariantById,
+  products,
+} from "@/lib/products";
+
+type LegacyCartItem = {
+  id: string;
+  qty: number;
+};
 
 export type CartItem = {
+  id: string; // alias legacy = productId
   productId: string;
   variantId: string;
   qty: number;
@@ -11,6 +22,7 @@ export type CartItem = {
 
 type CartDetailedItem = {
   key: string;
+  id: string; // alias legacy = productId
   productId: string;
   variantId: string;
   qty: number;
@@ -30,7 +42,7 @@ type CartApi = {
   setQty: (productId: string, variantId: string, qty: number) => void;
   remove: (productId: string, variantId: string) => void;
   clear: () => void;
-  replaceAll: (items: CartItem[]) => void;
+  replaceAll: (items: Array<CartItem | LegacyCartItem>) => void;
 };
 
 const CartCtx = createContext<CartApi | null>(null);
@@ -42,28 +54,54 @@ function itemKey(productId: string, variantId: string) {
   return `${productId}__${variantId}`;
 }
 
-function normalize(items: CartItem[]): CartItem[] {
-  const clean = (items ?? [])
-    .filter(
-      (x) =>
-        x &&
-        typeof x.productId === "string" &&
-        typeof x.variantId === "string"
-    )
-    .map((x) => ({
-      productId: x.productId,
-      variantId: x.variantId,
-      qty: Math.max(1, Math.min(99, Math.floor(Number(x.qty)))),
-    }))
-    .filter((x) => Number.isFinite(x.qty) && x.qty > 0);
+function normalize(items: Array<CartItem | LegacyCartItem>): CartItem[] {
+  const mapped = (items ?? [])
+    .map((x) => {
+      if (!x || typeof x.qty === "undefined") return null;
 
-  clean.sort((a, b) => {
+      // formato nuovo
+      if ("productId" in x && "variantId" in x) {
+        const productId = String(x.productId);
+        const variantId = String(x.variantId);
+        const qty = Math.max(1, Math.min(99, Math.floor(Number(x.qty))));
+
+        if (!productId || !variantId || !Number.isFinite(qty)) return null;
+
+        return {
+          id: productId,
+          productId,
+          variantId,
+          qty,
+        } satisfies CartItem;
+      }
+
+      // formato legacy: { id, qty }
+      if ("id" in x) {
+        const productId = String(x.id);
+        const defaultVariant = getDefaultVariantByProductId(productId);
+        const qty = Math.max(1, Math.min(99, Math.floor(Number(x.qty))));
+
+        if (!productId || !defaultVariant || !Number.isFinite(qty)) return null;
+
+        return {
+          id: productId,
+          productId,
+          variantId: defaultVariant.id,
+          qty,
+        } satisfies CartItem;
+      }
+
+      return null;
+    })
+    .filter(Boolean) as CartItem[];
+
+  mapped.sort((a, b) => {
     const ak = itemKey(a.productId, a.variantId);
     const bk = itemKey(b.productId, b.variantId);
     return ak < bk ? -1 : ak > bk ? 1 : 0;
   });
 
-  return clean;
+  return mapped;
 }
 
 function safeParse(raw: string | null): CartItem[] {
@@ -71,7 +109,7 @@ function safeParse(raw: string | null): CartItem[] {
   try {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return normalize(parsed as CartItem[]);
+    return normalize(parsed as Array<CartItem | LegacyCartItem>);
   } catch {
     return [];
   }
@@ -155,6 +193,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
         return {
           key: itemKey(it.productId, it.variantId),
+          id: it.productId,
           productId: it.productId,
           variantId: it.variantId,
           qty: it.qty,
@@ -178,7 +217,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         );
 
         if (idx === -1) {
-          return normalize([...base, { productId, variantId, qty: q }]);
+          return normalize([
+            ...base,
+            {
+              id: productId,
+              productId,
+              variantId,
+              qty: q,
+            },
+          ]);
         }
 
         const next = [...base];
@@ -219,7 +266,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       setItems([]);
     }
 
-    function replaceAll(nextItems: CartItem[]) {
+    function replaceAll(nextItems: Array<CartItem | LegacyCartItem>) {
       setItems(normalize(nextItems));
     }
 
