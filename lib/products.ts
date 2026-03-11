@@ -1,5 +1,7 @@
 import type { ProductBase, ProductLegacyCompatible } from "@/lib/product-types";
 
+export type Product = ProductLegacyCompatible;
+
 const rawProducts: ProductBase[] = [
   {
     id: "poster-chaos",
@@ -115,13 +117,10 @@ const rawProducts: ProductBase[] = [
 ];
 
 function getDefaultVariant(product: ProductBase) {
-  return (
-    product.variants.find((variant) => variant.isDefault) ??
-    product.variants[0]
-  );
+  return product.variants.find((variant) => variant.isDefault) ?? product.variants[0];
 }
 
-export const products: ProductLegacyCompatible[] = rawProducts.map((product) => {
+export const products: Product[] = rawProducts.map((product) => {
   const defaultVariant = getDefaultVariant(product);
 
   return {
