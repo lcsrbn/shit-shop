@@ -30,7 +30,10 @@ export default function CheckoutClient() {
     savePendingOrder({
       id: orderId,
       createdAt: Date.now(),
-      items: cart.items.map((x) => ({ id: x.id, qty: x.qty })),
+      items: cart.items.map((x) => ({
+        id: x.productId,
+        qty: x.qty,
+      })),
       subtotalEUR: cart.subtotalEUR,
     });
 
@@ -39,7 +42,10 @@ export default function CheckoutClient() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         orderId,
-        items: cart.items.map((x) => ({ id: x.id, qty: x.qty })),
+        items: cart.items.map((x) => ({
+          id: x.productId,
+          qty: x.qty,
+        })),
       }),
     });
 
@@ -89,7 +95,7 @@ export default function CheckoutClient() {
 
         {rows.map((row) => (
           <div
-            key={row.id}
+            key={row.key}
             style={{
               display: "grid",
               gridTemplateColumns: "84px 1fr auto",
@@ -110,7 +116,7 @@ export default function CheckoutClient() {
               }}
             >
               <img
-                src={row.product.frontImage}
+                src={row.variant.images[0] ?? row.product.frontImage}
                 alt={row.product.name}
                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
               />
@@ -118,11 +124,20 @@ export default function CheckoutClient() {
 
             <div>
               <div style={{ fontWeight: 950 }}>{row.product.name}</div>
-              <div style={{ fontSize: 13, opacity: 0.7 }}>€{row.product.priceEUR} cad.</div>
+              <div style={{ fontSize: 13, opacity: 0.7 }}>Variante: {row.variant.name}</div>
+              <div style={{ fontSize: 13, opacity: 0.7 }}>
+                €{row.variant.priceEUR.toFixed(2)} cad.
+              </div>
 
               <div style={{ display: "flex", gap: 8, marginTop: 10, alignItems: "center" }}>
                 <button
-                  onClick={() => cart.setQty(row.product.id, Math.max(1, row.qty - 1))}
+                  onClick={() =>
+                    cart.setQty(
+                      row.productId,
+                      row.variantId,
+                      Math.max(1, row.qty - 1)
+                    )
+                  }
                   style={{
                     borderRadius: 12,
                     border: "1px solid rgba(0,0,0,.12)",
@@ -138,7 +153,13 @@ export default function CheckoutClient() {
                 <div style={{ minWidth: 28, textAlign: "center", fontWeight: 950 }}>{row.qty}</div>
 
                 <button
-                  onClick={() => cart.setQty(row.product.id, Math.min(99, row.qty + 1))}
+                  onClick={() =>
+                    cart.setQty(
+                      row.productId,
+                      row.variantId,
+                      Math.min(99, row.qty + 1)
+                    )
+                  }
                   style={{
                     borderRadius: 12,
                     border: "1px solid rgba(0,0,0,.12)",
@@ -152,7 +173,7 @@ export default function CheckoutClient() {
                 </button>
 
                 <button
-                  onClick={() => cart.remove(row.product.id)}
+                  onClick={() => cart.remove(row.productId, row.variantId)}
                   style={{
                     marginLeft: 6,
                     borderRadius: 12,
