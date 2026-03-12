@@ -5,6 +5,7 @@ import {
   products,
   type Product,
   getDefaultVariantByProductId,
+  getVariantById,
 } from "@/lib/products";
 import { useCart } from "@/lib/cart";
 
@@ -68,6 +69,7 @@ type OverlayState =
   | {
       open: true;
       product: Product;
+      selectedVariantId: string;
       rect: { left: number; top: number; width: number; height: number; rotate: number };
       stage: "from-card" | "centered";
       flipped: boolean;
@@ -274,14 +276,18 @@ export default function FloatingProducts() {
     };
   }, [initProducts, overlayOpen]);
 
-  function openOverlay(p: Product, rotate: number) {
-    const el = cardRefs.current[p.id];
+  function openOverlay(product: Product, rotate: number) {
+    const el = cardRefs.current[product.id];
     if (!el) return;
+
+    const defaultVariant = getDefaultVariantByProductId(product.id);
+    if (!defaultVariant) return;
 
     const r = el.getBoundingClientRect();
     setOverlay({
       open: true,
-      product: p,
+      product,
+      selectedVariantId: defaultVariant.id,
       rect: { left: r.left, top: r.top, width: r.width, height: r.height, rotate },
       stage: "from-card",
       flipped: false,
@@ -305,6 +311,11 @@ export default function FloatingProducts() {
 
   const expandedW = "min(560px, calc(100vw - 28px))";
   const expandedH = "min(820px, calc(100vh - 28px))";
+
+  const selectedVariant =
+    overlay.open
+      ? getVariantById(overlay.product.id, overlay.selectedVariantId)
+      : null;
 
   return (
     <>
@@ -343,7 +354,7 @@ export default function FloatingProducts() {
         ))}
       </div>
 
-      {overlay.open && (
+      {overlay.open && selectedVariant && (
         <div className="overlay" onMouseDown={closeOverlay}>
           <div
             className="expandWrap"
@@ -378,7 +389,54 @@ export default function FloatingProducts() {
                     <div className="bigTitle">{overlay.product.name}</div>
 
                     <div className="hero">
-                      <img src={overlay.product.frontImage} alt={overlay.product.name} />
+                      <img
+                        src={selectedVariant.images[0] ?? overlay.product.frontImage}
+                        alt={overlay.product.name}
+                      />
+                    </div>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 8,
+                        marginTop: 12,
+                        marginBottom: 12,
+                      }}
+                    >
+                      {overlay.product.variants.map((variant) => {
+                        const active = variant.id === overlay.selectedVariantId;
+                        const outOfStock = variant.stock <= 0;
+
+                        return (
+                          <button
+                            key={variant.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (outOfStock) return;
+                              setOverlay((prev) =>
+                                prev.open
+                                  ? { ...prev, selectedVariantId: variant.id }
+                                  : prev
+                              );
+                            }}
+                            style={{
+                              borderRadius: 999,
+                              border: active
+                                ? "1px solid #111"
+                                : "1px solid rgba(0,0,0,.12)",
+                              background: active ? "#111" : "#fff",
+                              color: active ? "#fff" : "#111",
+                              padding: "8px 12px",
+                              cursor: outOfStock ? "not-allowed" : "pointer",
+                              opacity: outOfStock ? 0.45 : 1,
+                              fontWeight: 800,
+                            }}
+                          >
+                            {variant.name}
+                          </button>
+                        );
+                      })}
                     </div>
 
                     <div
@@ -389,7 +447,7 @@ export default function FloatingProducts() {
                         gap: 12,
                       }}
                     >
-                      <div className="priceLine">€ {overlay.product.priceEUR.toFixed(2)}</div>
+                      <div className="priceLine">€ {selectedVariant.priceEUR.toFixed(2)}</div>
 
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <button
@@ -434,6 +492,10 @@ export default function FloatingProducts() {
                       </div>
                     </div>
 
+                    <div style={{ marginTop: 8, fontSize: 13, opacity: 0.7 }}>
+                      Stock disponibile: {selectedVariant.stock}
+                    </div>
+
                     <div className="desc">{overlay.product.description ?? ""}</div>
 
                     <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
@@ -441,13 +503,12 @@ export default function FloatingProducts() {
                         onClick={(e) => {
                           e.stopPropagation();
 
-                          const defaultVariant = getDefaultVariantByProductId(overlay.product.id);
-                          if (!defaultVariant) {
-                            alert("Variante di default non trovata");
+                          if (selectedVariant.stock <= 0) {
+                            alert("Variante esaurita");
                             return;
                           }
 
-                          cart.add(overlay.product.id, defaultVariant.id, overlay.qty);
+                          cart.add(overlay.product.id, selectedVariant.id, overlay.qty);
 
                           setOverlay({ open: false });
 
@@ -462,11 +523,12 @@ export default function FloatingProducts() {
                           background: "#0b0b0b",
                           color: "#fff",
                           padding: "12px 14px",
-                          cursor: "pointer",
+                          cursor: selectedVariant.stock <= 0 ? "not-allowed" : "pointer",
+                          opacity: selectedVariant.stock <= 0 ? 0.6 : 1,
                           fontWeight: 950,
                         }}
                       >
-                        Aggiungi al carrello
+                        {selectedVariant.stock <= 0 ? "Esaurito" : "Aggiungi al carrello"}
                       </button>
                     </div>
 
@@ -491,7 +553,7 @@ export default function FloatingProducts() {
 
                   <div className="backFull">
                     <img
-                      src={overlay.product.backImage}
+                      src={selectedVariant.images[1] ?? overlay.product.backImage}
                       alt={`${overlay.product.name} secondary`}
                     />
                   </div>
