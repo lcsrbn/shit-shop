@@ -45,8 +45,23 @@ async function getUserIdByEmail(email: string | null): Promise<string | null> {
     return null;
   }
 
-  const match = data.users.find((user) => user.email?.toLowerCase() === email.toLowerCase());
+  const match = data.users.find(
+    (user) => user.email?.toLowerCase() === email.toLowerCase()
+  );
+
   return match?.id ?? null;
+}
+
+function readItemsJsonFromMetadata(session: Stripe.Checkout.Session) {
+  const raw = session.metadata?.itemsJson;
+  if (!raw) return [];
+
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
 export async function POST(req: Request) {
@@ -111,6 +126,8 @@ export async function POST(req: Request) {
         paymentIntent?.shipping?.phone ??
         null;
 
+      const itemsJson = readItemsJsonFromMetadata(session);
+
       const row = {
         user_id: userId,
         status: "paid",
@@ -136,10 +153,7 @@ export async function POST(req: Request) {
         amount_subtotal: session.amount_subtotal ?? null,
         amount_total: session.amount_total ?? null,
 
-        items_json: {
-          note: "Line items can be expanded later if needed",
-        },
-
+        items_json: itemsJson,
         stripe_payload_json: JSON.parse(JSON.stringify(session)),
       };
 
@@ -166,6 +180,7 @@ export async function POST(req: Request) {
         customerEmail,
         userId,
         amountTotal: session.amount_total ?? null,
+        itemsCount: itemsJson.length,
       });
     }
 

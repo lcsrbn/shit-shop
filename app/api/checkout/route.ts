@@ -32,30 +32,41 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No items" }, { status: 400 });
     }
 
-    const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = body.items.map(
-      ({ id, variantId, qty }) => {
-        const product = getProductById(id);
-        const variant = getVariantById(id, variantId);
+    const normalizedItems = body.items.map(({ id, variantId, qty }) => {
+      const product = getProductById(id);
+      const variant = getVariantById(id, variantId);
 
-        if (!product) {
-          throw new Error(`Unknown product id: ${id}`);
-        }
-
-        if (!variant) {
-          throw new Error(`Unknown variant id: ${variantId} for product ${id}`);
-        }
-
-        return {
-          quantity: clampQty(qty),
-          price_data: {
-            currency: "eur",
-            unit_amount: Math.round(variant.priceEUR * 100),
-            product_data: {
-              name: `${product.name} · ${variant.name}`,
-            },
-          },
-        };
+      if (!product) {
+        throw new Error(`Unknown product id: ${id}`);
       }
+
+      if (!variant) {
+        throw new Error(`Unknown variant id: ${variantId} for product ${id}`);
+      }
+
+      return {
+        productId: product.id,
+        productName: product.name,
+        variantId: variant.id,
+        variantName: variant.name,
+        sku: variant.sku,
+        qty: clampQty(qty),
+        unitPriceEUR: variant.priceEUR,
+        lineTotalEUR: variant.priceEUR * clampQty(qty),
+      };
+    });
+
+    const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = normalizedItems.map(
+      (item) => ({
+        quantity: item.qty,
+        price_data: {
+          currency: "eur",
+          unit_amount: Math.round(item.unitPriceEUR * 100),
+          product_data: {
+            name: `${item.productName} · ${item.variantName}`,
+          },
+        },
+      })
     );
 
     const session = await stripe.checkout.sessions.create({
@@ -110,6 +121,7 @@ export async function POST(req: Request) {
       metadata: {
         source: "shit-shop",
         orderId: body.orderId ?? "",
+        itemsJson: JSON.stringify(normalizedItems),
       },
     });
 
