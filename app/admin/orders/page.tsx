@@ -4,6 +4,17 @@ import { getSupabaseServerClient } from "@/lib/supabase-server";
 
 const ADMIN_COOKIE = "shit_shop_admin_session";
 
+type OrderItemRow = {
+  productId: string;
+  productName: string;
+  variantId: string;
+  variantName: string;
+  sku: string;
+  qty: number;
+  unitPriceEUR: number;
+  lineTotalEUR: number;
+};
+
 type OrderRow = {
   id: string;
   created_at: string;
@@ -24,6 +35,7 @@ type OrderRow = {
   amount_subtotal: number | null;
   amount_total: number | null;
   user_id: string | null;
+  items_json: OrderItemRow[] | null;
 };
 
 function formatMoney(cents: number | null, currency: string | null) {
@@ -32,6 +44,14 @@ function formatMoney(cents: number | null, currency: string | null) {
   return new Intl.NumberFormat("it-IT", {
     style: "currency",
     currency: (currency ?? "EUR").toUpperCase(),
+  }).format(value);
+}
+
+function formatEUR(value: number | null | undefined) {
+  if (value == null) return "—";
+  return new Intl.NumberFormat("it-IT", {
+    style: "currency",
+    currency: "EUR",
   }).format(value);
 }
 
@@ -225,6 +245,60 @@ export default async function AdminOrdersPage() {
                   <div>Cod. fiscale: {order.tax_code ?? "—"}</div>
                   <div>Note: {order.order_note ?? "—"}</div>
                 </div>
+              </div>
+
+              <div
+                style={{
+                  marginTop: 16,
+                  paddingTop: 14,
+                  borderTop: "1px solid rgba(0,0,0,.08)",
+                }}
+              >
+                <div style={{ fontSize: 13, opacity: 0.65, marginBottom: 10 }}>
+                  Articoli acquistati
+                </div>
+
+                {!order.items_json || order.items_json.length === 0 ? (
+                  <div style={{ opacity: 0.7 }}>Nessun line item disponibile.</div>
+                ) : (
+                  <div style={{ display: "grid", gap: 10 }}>
+                    {order.items_json.map((item, index) => (
+                      <div
+                        key={`${order.id}-${item.variantId}-${index}`}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "1.5fr 1fr auto auto",
+                          gap: 12,
+                          alignItems: "center",
+                          padding: "10px 12px",
+                          border: "1px solid rgba(0,0,0,.08)",
+                          borderRadius: 12,
+                          background: "#fff",
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontWeight: 900 }}>{item.productName}</div>
+                          <div style={{ fontSize: 13, opacity: 0.75 }}>
+                            Variante: {item.variantName}
+                          </div>
+                          <div style={{ fontSize: 12, opacity: 0.6 }}>
+                            SKU: {item.sku}
+                          </div>
+                        </div>
+
+                        <div style={{ fontSize: 14 }}>
+                          {formatEUR(item.unitPriceEUR)} cad.
+                        </div>
+
+                        <div style={{ fontWeight: 800 }}>Qty {item.qty}</div>
+
+                        <div style={{ fontWeight: 900 }}>
+                          {formatEUR(item.lineTotalEUR)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </section>
           ))
