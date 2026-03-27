@@ -3,8 +3,6 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
-const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
-
 export function OrderStatusSelect({
   orderId,
   initialStatus,
@@ -18,21 +16,19 @@ export function OrderStatusSelect({
 
   function updateStatus(newStatus: string) {
     const previousStatus = status;
+    const url = "/api/admin/orders/update-status";
 
     console.log("UPDATE_STATUS_CLICK", {
       orderId,
       previousStatus,
       newStatus,
-      basePath: BASE_PATH,
-      url: `${BASE_PATH}/api/admin/orders/update-status`,
+      url,
     });
 
     setStatus(newStatus);
 
     startTransition(async () => {
       try {
-        const url = `${BASE_PATH}/api/admin/orders/update-status`;
-
         const res = await fetch(url, {
           method: "POST",
           headers: {
