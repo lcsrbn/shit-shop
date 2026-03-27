@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 
 export function OrderStatusSelect({
   orderId,
@@ -9,6 +10,7 @@ export function OrderStatusSelect({
   orderId: string;
   initialStatus: string | null;
 }) {
+  const router = useRouter();
   const [status, setStatus] = useState(initialStatus ?? "pending");
   const [isPending, startTransition] = useTransition();
 
@@ -27,12 +29,18 @@ export function OrderStatusSelect({
           }),
         });
 
+        const payload = await res.json().catch(() => null);
+
         if (!res.ok) {
           setStatus(previousStatus);
-          throw new Error("Update failed");
+          alert(payload?.error ?? "Errore aggiornamento stato");
+          return;
         }
+
+        router.refresh();
       } catch (err) {
         console.error(err);
+        setStatus(previousStatus);
         alert("Errore aggiornamento stato");
       }
     });
