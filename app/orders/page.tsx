@@ -80,6 +80,7 @@ export default async function OrdersPage() {
   return (
     <main style={{ padding: 30, maxWidth: 980, margin: "0 auto" }}>
       <div style={{ fontSize: 13, opacity: 0.65 }}>shit-shop</div>
+
       <h1
         style={{
           margin: "6px 0 0",
@@ -172,7 +173,9 @@ export default async function OrdersPage() {
 
                 <div style={{ textAlign: "right" }}>
                   <div style={{ fontSize: 13, opacity: 0.65 }}>Creato il</div>
-                  <div style={{ fontWeight: 900 }}>{formatDate(order.created_at)}</div>
+                  <div style={{ fontWeight: 900 }}>
+                    {formatDate(order.created_at)}
+                  </div>
                 </div>
               </div>
 
@@ -186,9 +189,15 @@ export default async function OrdersPage() {
               >
                 <div>
                   <div style={{ fontSize: 13, opacity: 0.65 }}>Cliente</div>
-                  <div style={{ fontWeight: 800 }}>{order.customer_name ?? "—"}</div>
-                  <div style={{ opacity: 0.8 }}>{order.customer_email ?? "—"}</div>
-                  <div style={{ opacity: 0.8 }}>{order.customer_phone ?? "—"}</div>
+                  <div style={{ fontWeight: 800 }}>
+                    {order.customer_name ?? "—"}
+                  </div>
+                  <div style={{ opacity: 0.8 }}>
+                    {order.customer_email ?? "—"}
+                  </div>
+                  <div style={{ opacity: 0.8 }}>
+                    {order.customer_phone ?? "—"}
+                  </div>
                 </div>
 
                 <div>

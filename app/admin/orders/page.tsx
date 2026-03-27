@@ -1,25 +1,12 @@
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { getSupabaseServerClient } from "@/lib/supabase-server";
-
-const ADMIN_COOKIE = "shit_shop_admin_session";
-
-type OrderItemRow = {
-  productId: string;
-  productName: string;
-  variantId: string;
-  variantName: string;
-  sku: string;
-  qty: number;
-  unitPriceEUR: number;
-  lineTotalEUR: number;
-};
+import { getSupabaseServerAuthClient } from "@/lib/supabase-server-auth";
 
 type OrderRow = {
   id: string;
   created_at: string;
-  status: string;
+  status: string | null;
   order_id: string | null;
+  user_id: string | null;
   customer_email: string | null;
   customer_name: string | null;
   customer_phone: string | null;
@@ -34,28 +21,42 @@ type OrderRow = {
   currency: string | null;
   amount_subtotal: number | null;
   amount_total: number | null;
-  user_id: string | null;
-  items_json: OrderItemRow[] | null;
+  items_json: unknown;
+};
+
+type OrderItemRow = {
+  productId: string;
+  productName: string;
+  variantId: string;
+  variantName: string;
+  sku: string;
+  qty: number;
+  unitPriceEUR: number;
+  lineTotalEUR: number;
 };
 
 function formatMoney(cents: number | null, currency: string | null) {
   if (cents == null) return "—";
   const value = cents / 100;
+
   return new Intl.NumberFormat("it-IT", {
     style: "currency",
     currency: (currency ?? "EUR").toUpperCase(),
   }).format(value);
 }
 
-function formatEUR(value: number | null | undefined) {
-  if (value == null) return "—";
+function formatMoneyFromNumber(value: number | null, currency: string | null) {
+  if (value == null || !Number.isFinite(value)) return "—";
+
   return new Intl.NumberFormat("it-IT", {
     style: "currency",
-    currency: "EUR",
+    currency: (currency ?? "EUR").toUpperCase(),
   }).format(value);
 }
 
-function formatDate(value: string) {
+function formatDate(value: string | null) {
+  if (!value) return "—";
+
   try {
     return new Date(value).toLocaleString("it-IT");
   } catch {
@@ -63,15 +64,126 @@ function formatDate(value: string) {
   }
 }
 
-export default async function AdminOrdersPage() {
-  const cookieStore = await cookies();
-  const adminSession = cookieStore.get(ADMIN_COOKIE)?.value;
+function toFiniteNumber(value: unknown, fallback = 0): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
 
-  if (adminSession !== "1") {
-    redirect("/admin/login");
+  if (typeof value === "string") {
+    const normalized = value.replace(",", ".").trim();
+    const parsed = Number(normalized);
+    if (Number.isFinite(parsed)) return parsed;
   }
 
-  const supabase = getSupabaseServerClient();
+  return fallback;
+}
+
+function normalizeItemsJson(value: unknown): OrderItemRow[] {
+  const mapItem = (item: unknown): OrderItemRow | null => {
+    if (!item || typeof item !== "object") return null;
+
+    const row = item as Record<string, unknown>;
+
+    const qty = toFiniteNumber(row.qty ?? row.quantity, 1);
+    const unitPrice =
+      toFiniteNumber(
+        row.unitPriceEUR ??
+          row.unit_price_eur ??
+          row.unit_price ??
+          row.price ??
+          row.price_eur,
+        0
+      );
+
+    const computedLineTotal = qty * unitPrice;
+
+    const lineTotal =
+      toFiniteNumber(
+        row.lineTotalEUR ??
+          row.line_total_eur ??
+          row.line_total ??
+          row.total,
+        computedLineTotal
+      );
+
+    return {
+      productId: String(row.productId ?? row.product_id ?? ""),
+      productName: String(
+        row.productName ??
+          row.product_name ??
+          row.name ??
+          row.title ??
+          "Prodotto"
+      ),
+      variantId: String(row.variantId ?? row.variant_id ?? ""),
+      variantName: String(
+        row.variantName ??
+          row.variant_name ??
+          row.variant ??
+          row.option_name ??
+          "Default"
+      ),
+      sku: String(row.sku ?? ""),
+      qty,
+      unitPriceEUR: unitPrice,
+      lineTotalEUR: lineTotal,
+    };
+  };
+
+  const normalizeArray = (arr: unknown[]): OrderItemRow[] =>
+    arr
+      .map(mapItem)
+      .filter((item): item is OrderItemRow => item !== null);
+
+  if (Array.isArray(value)) {
+    return normalizeArray(value);
+  }
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return normalizeArray(parsed);
+      if (parsed && typeof parsed === "object") {
+        const single = mapItem(parsed);
+        return single ? [single] : [];
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  }
+
+  if (value && typeof value === "object") {
+    const single = mapItem(value);
+    return single ? [single] : [];
+  }
+
+  return [];
+}
+
+async function getAdminOrders(): Promise<{
+  userEmail: string | null;
+  orders: OrderRow[];
+}> {
+  const supabase = await getSupabaseServerAuthClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const adminEmails = (process.env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (adminEmails.length > 0) {
+    const currentEmail = (user.email ?? "").toLowerCase();
+    if (!adminEmails.includes(currentEmail)) {
+      redirect("/");
+    }
+  }
 
   const { data, error } = await supabase
     .from("orders")
@@ -79,76 +191,42 @@ export default async function AdminOrdersPage() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    return (
-      <main style={{ padding: 30, maxWidth: 1100, margin: "0 auto" }}>
-        <div style={{ fontSize: 13, opacity: 0.65 }}>shit-shop admin</div>
-        <h1
-          style={{
-            margin: "6px 0 0",
-            fontSize: 34,
-            fontWeight: 950,
-            letterSpacing: "-0.03em",
-          }}
-        >
-          Admin · Ordini
-        </h1>
-        <p style={{ marginTop: 18, color: "crimson" }}>
-          Errore caricamento ordini: {error.message}
-        </p>
-      </main>
-    );
+    console.error("Admin orders query error:", error);
+    return {
+      userEmail: user.email ?? null,
+      orders: [],
+    };
   }
 
-  const orders = (data as OrderRow[]) ?? [];
+  return {
+    userEmail: user.email ?? null,
+    orders: (data as OrderRow[]) ?? [],
+  };
+}
+
+export default async function AdminOrdersPage() {
+  const { userEmail, orders } = await getAdminOrders();
 
   return (
-    <main style={{ padding: 30, maxWidth: 1100, margin: "0 auto" }}>
-      <div
+    <main style={{ padding: 30, maxWidth: 1200, margin: "0 auto" }}>
+      <div style={{ fontSize: 13, opacity: 0.65 }}>shit-shop admin</div>
+
+      <h1
         style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: 12,
-          flexWrap: "wrap",
+          margin: "6px 0 0",
+          fontSize: 34,
+          fontWeight: 950,
+          letterSpacing: "-0.03em",
         }}
       >
-        <div>
-          <div style={{ fontSize: 13, opacity: 0.65 }}>shit-shop admin</div>
-          <h1
-            style={{
-              margin: "6px 0 0",
-              fontSize: 34,
-              fontWeight: 950,
-              letterSpacing: "-0.03em",
-            }}
-          >
-            Admin · Ordini
-          </h1>
-        </div>
-
-        <form action="/api/admin-auth/logout" method="post">
-          <button
-            type="submit"
-            style={{
-              borderRadius: 999,
-              border: "1px solid rgba(0,0,0,.12)",
-              background: "#fff",
-              padding: "10px 14px",
-              color: "#111",
-              fontWeight: 800,
-              cursor: "pointer",
-            }}
-          >
-            Logout admin
-          </button>
-        </form>
-      </div>
+        Admin Orders
+      </h1>
 
       <p style={{ marginTop: 10, opacity: 0.75 }}>
-        Vista completa di tutti gli ordini salvati nel database.
+        Loggato come: {userEmail ?? "admin"}
       </p>
 
-      <div style={{ marginTop: 18, display: "grid", gap: 14 }}>
+      <div style={{ marginTop: 22, display: "grid", gap: 16 }}>
         {orders.length === 0 ? (
           <section
             style={{
@@ -158,150 +236,189 @@ export default async function AdminOrdersPage() {
               background: "rgba(255,255,255,.92)",
             }}
           >
-            Nessun ordine trovato.
+            <p style={{ margin: 0, opacity: 0.8 }}>Nessun ordine trovato.</p>
           </section>
         ) : (
-          orders.map((order) => (
-            <section
-              key={order.id}
-              style={{
-                border: "1px solid rgba(0,0,0,.10)",
-                borderRadius: 18,
-                padding: 18,
-                background: "rgba(255,255,255,.92)",
-              }}
-            >
-              <div
+          orders.map((order) => {
+            const orderItems = normalizeItemsJson(order.items_json);
+
+            return (
+              <section
+                key={order.id}
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  gap: 12,
-                  flexWrap: "wrap",
+                  border: "1px solid rgba(0,0,0,.10)",
+                  borderRadius: 18,
+                  padding: 18,
+                  background: "rgba(255,255,255,.92)",
                 }}
               >
-                <div>
-                  <div style={{ fontSize: 13, opacity: 0.65 }}>Ordine</div>
-                  <div style={{ fontWeight: 950 }}>
-                    {order.order_id ?? order.id}
-                  </div>
-                  <div style={{ fontSize: 13, opacity: 0.65, marginTop: 4 }}>
-                    user_id: {order.user_id ?? "—"}
-                  </div>
-                </div>
-
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 13, opacity: 0.65 }}>Creato il</div>
-                  <div style={{ fontWeight: 900 }}>
-                    {formatDate(order.created_at)}
-                  </div>
-                </div>
-              </div>
-
-              <div
-                style={{
-                  marginTop: 14,
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                  gap: 12,
-                }}
-              >
-                <div>
-                  <div style={{ fontSize: 13, opacity: 0.65 }}>Cliente</div>
-                  <div style={{ fontWeight: 800 }}>
-                    {order.customer_name ?? "—"}
-                  </div>
-                  <div style={{ opacity: 0.8 }}>
-                    {order.customer_email ?? "—"}
-                  </div>
-                  <div style={{ opacity: 0.8 }}>
-                    {order.customer_phone ?? "—"}
-                  </div>
-                </div>
-
-                <div>
-                  <div style={{ fontSize: 13, opacity: 0.65 }}>Spedizione</div>
-                  <div>{order.shipping_line1 ?? "—"}</div>
-                  {order.shipping_line2 ? <div>{order.shipping_line2}</div> : null}
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    flexWrap: "wrap",
+                    alignItems: "flex-start",
+                  }}
+                >
                   <div>
-                    {[order.shipping_postal_code, order.shipping_city]
-                      .filter(Boolean)
-                      .join(" ")}
+                    <div style={{ fontSize: 13, opacity: 0.65 }}>Ordine</div>
+                    <div style={{ fontWeight: 950, fontSize: 18 }}>
+                      {order.order_id ?? order.id}
+                    </div>
+                    <div style={{ marginTop: 6, fontSize: 13, opacity: 0.75 }}>
+                      DB id: {order.id}
+                    </div>
+                    <div style={{ fontSize: 13, opacity: 0.75 }}>
+                      User id: {order.user_id ?? "—"}
+                    </div>
                   </div>
-                  <div>
-                    {[order.shipping_state, order.shipping_country]
-                      .filter(Boolean)
-                      .join(" · ")}
+
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: 13, opacity: 0.65 }}>Creato il</div>
+                    <div style={{ fontWeight: 900 }}>
+                      {formatDate(order.created_at)}
+                    </div>
+                    <div style={{ marginTop: 8 }}>
+                      Stato: <b>{order.status ?? "—"}</b>
+                    </div>
+                    <div>
+                      Totale:{" "}
+                      <b>{formatMoney(order.amount_total, order.currency)}</b>
+                    </div>
                   </div>
                 </div>
 
-                <div>
-                  <div style={{ fontSize: 13, opacity: 0.65 }}>Ordine</div>
+                <div
+                  style={{
+                    marginTop: 16,
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+                    gap: 14,
+                  }}
+                >
                   <div>
-                    Stato: <b>{order.status}</b>
+                    <div style={{ fontSize: 13, opacity: 0.65 }}>Cliente</div>
+                    <div style={{ fontWeight: 800 }}>
+                      {order.customer_name ?? "—"}
+                    </div>
+                    <div style={{ opacity: 0.8 }}>
+                      {order.customer_email ?? "—"}
+                    </div>
+                    <div style={{ opacity: 0.8 }}>
+                      {order.customer_phone ?? "—"}
+                    </div>
+                    <div style={{ marginTop: 8, opacity: 0.8 }}>
+                      Cod. fiscale: {order.tax_code ?? "—"}
+                    </div>
                   </div>
+
                   <div>
-                    Totale: <b>{formatMoney(order.amount_total, order.currency)}</b>
+                    <div style={{ fontSize: 13, opacity: 0.65 }}>Spedizione</div>
+                    <div>{order.shipping_line1 ?? "—"}</div>
+                    {order.shipping_line2 ? <div>{order.shipping_line2}</div> : null}
+                    <div>
+                      {[order.shipping_postal_code, order.shipping_city]
+                        .filter(Boolean)
+                        .join(" ")}
+                    </div>
+                    <div>
+                      {[order.shipping_state, order.shipping_country]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </div>
                   </div>
-                  <div>Cod. fiscale: {order.tax_code ?? "—"}</div>
-                  <div>Note: {order.order_note ?? "—"}</div>
-                </div>
-              </div>
 
-              <div
-                style={{
-                  marginTop: 16,
-                  paddingTop: 14,
-                  borderTop: "1px solid rgba(0,0,0,.08)",
-                }}
-              >
-                <div style={{ fontSize: 13, opacity: 0.65, marginBottom: 10 }}>
-                  Articoli acquistati
+                  <div>
+                    <div style={{ fontSize: 13, opacity: 0.65 }}>Note ordine</div>
+                    <div style={{ whiteSpace: "pre-wrap" }}>
+                      {order.order_note ?? "—"}
+                    </div>
+                  </div>
                 </div>
 
-                {!order.items_json || order.items_json.length === 0 ? (
-                  <div style={{ opacity: 0.7 }}>Nessun line item disponibile.</div>
-                ) : (
-                  <div style={{ display: "grid", gap: 10 }}>
-                    {order.items_json.map((item, index) => (
-                      <div
-                        key={`${order.id}-${item.variantId}-${index}`}
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "1.5fr 1fr auto auto",
-                          gap: 12,
-                          alignItems: "center",
-                          padding: "10px 12px",
-                          border: "1px solid rgba(0,0,0,.08)",
-                          borderRadius: 12,
-                          background: "#fff",
-                        }}
-                      >
-                        <div>
-                          <div style={{ fontWeight: 900 }}>{item.productName}</div>
-                          <div style={{ fontSize: 13, opacity: 0.75 }}>
-                            Variante: {item.variantName}
+                <div style={{ marginTop: 18 }}>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      opacity: 0.65,
+                      marginBottom: 10,
+                    }}
+                  >
+                    Line items
+                  </div>
+
+                  {orderItems.length === 0 ? (
+                    <div
+                      style={{
+                        border: "1px dashed rgba(0,0,0,.12)",
+                        borderRadius: 14,
+                        padding: 14,
+                        opacity: 0.8,
+                      }}
+                    >
+                      Nessun line item disponibile.
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        display: "grid",
+                        gap: 10,
+                      }}
+                    >
+                      {orderItems.map((item, index) => (
+                        <div
+                          key={`${order.id}-${item.variantId || item.productId || index}`}
+                          style={{
+                            border: "1px solid rgba(0,0,0,.08)",
+                            borderRadius: 14,
+                            padding: 12,
+                            background: "rgba(0,0,0,.02)",
+                          }}
+                        >
+                          <div style={{ fontWeight: 900 }}>
+                            {item.productName}
                           </div>
-                          <div style={{ fontSize: 12, opacity: 0.6 }}>
-                            SKU: {item.sku}
+
+                          <div style={{ marginTop: 4, opacity: 0.8 }}>
+                            Variante: {item.variantName || "Default"}
+                          </div>
+
+                          <div style={{ marginTop: 4, opacity: 0.8 }}>
+                            SKU: {item.sku || "—"}
+                          </div>
+
+                          <div style={{ marginTop: 8 }}>
+                            Qty: <b>{item.qty}</b>
+                          </div>
+
+                          <div>
+                            Prezzo unitario:{" "}
+                            <b>
+                              {formatMoneyFromNumber(
+                                item.unitPriceEUR,
+                                order.currency ?? "EUR"
+                              )}
+                            </b>
+                          </div>
+
+                          <div>
+                            Totale riga:{" "}
+                            <b>
+                              {formatMoneyFromNumber(
+                                item.lineTotalEUR,
+                                order.currency ?? "EUR"
+                              )}
+                            </b>
                           </div>
                         </div>
-
-                        <div style={{ fontSize: 14 }}>
-                          {formatEUR(item.unitPriceEUR)} cad.
-                        </div>
-
-                        <div style={{ fontWeight: 800 }}>Qty {item.qty}</div>
-
-                        <div style={{ fontWeight: 900 }}>
-                          {formatEUR(item.lineTotalEUR)}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </section>
-          ))
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </section>
+            );
+          })
         )}
       </div>
     </main>
