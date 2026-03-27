@@ -22,6 +22,7 @@ export function proxy(req: NextRequest) {
     pathname.startsWith("/api/logout") ||
     pathname.startsWith("/api/admin-auth/login") ||
     pathname.startsWith("/api/admin-auth/logout") ||
+    pathname.startsWith("/api/admin/orders/update-status") ||
     pathname.startsWith("/api/stripe/webhook");
 
   if (isStaticAsset || isAlwaysAllowed) {
