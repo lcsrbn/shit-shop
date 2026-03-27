@@ -3,6 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+
 export function OrderStatusSelect({
   orderId,
   initialStatus,
@@ -20,20 +22,25 @@ export function OrderStatusSelect({
 
     startTransition(async () => {
       try {
-        const res = await fetch("/api/admin/orders/update-status", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            orderId,
-            status: newStatus,
-          }),
-        });
+        const res = await fetch(
+          `${BASE_PATH}/api/admin/orders/update-status`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              orderId,
+              status: newStatus,
+            }),
+          }
+        );
 
         const payload = await res.json().catch(() => null);
 
         if (!res.ok) {
           setStatus(previousStatus);
-          alert(payload?.error ?? "Errore aggiornamento stato");
+          alert(payload?.error ?? `Errore aggiornamento stato (${res.status})`);
           return;
         }
 

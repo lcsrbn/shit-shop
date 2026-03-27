@@ -11,7 +11,9 @@ const ALLOWED_STATUSES = [
 ] as const;
 
 function isAllowedStatus(value: string): boolean {
-  return ALLOWED_STATUSES.includes(value as (typeof ALLOWED_STATUSES)[number]);
+  return ALLOWED_STATUSES.includes(
+    value as (typeof ALLOWED_STATUSES)[number]
+  );
 }
 
 export async function POST(req: Request) {
@@ -23,12 +25,7 @@ export async function POST(req: Request) {
       error: userError,
     } = await supabaseAuth.auth.getUser();
 
-    if (userError) {
-      console.error("auth.getUser error:", userError);
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (!user) {
+    if (userError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -58,10 +55,7 @@ export async function POST(req: Request) {
     }
 
     if (!isAllowedStatus(status)) {
-      return NextResponse.json(
-        { error: "Invalid status" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     }
 
     const supabaseAdmin = getSupabaseAdminClient();
@@ -75,24 +69,17 @@ export async function POST(req: Request) {
 
     if (error) {
       console.error("Update status DB error:", error);
-      return NextResponse.json(
-        { error: error.message },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({
-      ok: true,
-      order: data,
-    });
+    return NextResponse.json({ ok: true, order: data });
   } catch (err) {
-    console.error("Update status route fatal error:", err);
-
-    const message =
-      err instanceof Error ? err.message : "Server error";
+    console.error("Update status fatal error:", err);
 
     return NextResponse.json(
-      { error: message },
+      {
+        error: err instanceof Error ? err.message : "Server error",
+      },
       { status: 500 }
     );
   }
