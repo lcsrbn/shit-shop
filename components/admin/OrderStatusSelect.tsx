@@ -18,25 +18,43 @@ export function OrderStatusSelect({
 
   function updateStatus(newStatus: string) {
     const previousStatus = status;
+
+    console.log("UPDATE_STATUS_CLICK", {
+      orderId,
+      previousStatus,
+      newStatus,
+      basePath: BASE_PATH,
+      url: `${BASE_PATH}/api/admin/orders/update-status`,
+    });
+
     setStatus(newStatus);
 
     startTransition(async () => {
       try {
-        const res = await fetch(
-          `${BASE_PATH}/api/admin/orders/update-status`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              orderId,
-              status: newStatus,
-            }),
-          }
-        );
+        const url = `${BASE_PATH}/api/admin/orders/update-status`;
 
-        const payload = await res.json().catch(() => null);
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            orderId,
+            status: newStatus,
+          }),
+        });
+
+        const text = await res.text();
+        console.log("UPDATE_STATUS_RESPONSE", {
+          status: res.status,
+          ok: res.ok,
+          body: text,
+        });
+
+        let payload: any = null;
+        try {
+          payload = text ? JSON.parse(text) : null;
+        } catch {}
 
         if (!res.ok) {
           setStatus(previousStatus);
@@ -46,7 +64,7 @@ export function OrderStatusSelect({
 
         router.refresh();
       } catch (err) {
-        console.error(err);
+        console.error("UPDATE_STATUS_FETCH_ERROR", err);
         setStatus(previousStatus);
         alert("Errore aggiornamento stato");
       }
