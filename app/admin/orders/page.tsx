@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSupabaseServerAuthClient } from "@/lib/supabase-server-auth";
+import { OrderStatusSelect } from "@/components/admin/OrderStatusSelect";
 
 type OrderRow = {
   id: string;
@@ -192,7 +193,8 @@ export default async function AdminOrdersPage({
 
   const filteredOrders = orders.filter((order) => {
     const matchesStatus =
-      statusFilter === "all" || (order.status ?? "").toLowerCase() === statusFilter.toLowerCase();
+      statusFilter === "all" ||
+      (order.status ?? "").toLowerCase() === statusFilter.toLowerCase();
 
     const searchable = [
       order.order_id ?? "",
@@ -267,6 +269,7 @@ export default async function AdminOrdersPage({
           <option value="pending">Pending</option>
           <option value="failed">Failed</option>
           <option value="cancelled">Cancelled</option>
+          <option value="shipped">Shipped</option>
         </select>
 
         <button
@@ -344,10 +347,19 @@ export default async function AdminOrdersPage({
                     <div style={{ fontWeight: 900 }}>
                       {formatDate(order.created_at)}
                     </div>
+
                     <div style={{ marginTop: 8 }}>
-                      Stato: <b>{order.status ?? "—"}</b>
+                      Stato attuale: <b>{order.status ?? "—"}</b>
                     </div>
-                    <div>
+
+                    <div style={{ marginTop: 8, display: "flex", justifyContent: "flex-end" }}>
+                      <OrderStatusSelect
+                        orderId={order.id}
+                        initialStatus={order.status}
+                      />
+                    </div>
+
+                    <div style={{ marginTop: 8 }}>
                       Totale:{" "}
                       <b>{formatMoneyCents(order.amount_total, order.currency)}</b>
                     </div>
