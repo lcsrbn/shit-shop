@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const MAINTENANCE_MODE = true;
+const ADMIN_COOKIE = "shit_shop_admin_session";
 
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+  const hasAdminSession = req.cookies.get(ADMIN_COOKIE)?.value === "1";
 
   const isStaticAsset =
     pathname.startsWith("/_next") ||
@@ -29,7 +32,7 @@ export function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
-  if (MAINTENANCE_MODE) {
+  if (MAINTENANCE_MODE && !hasAdminSession) {
     return NextResponse.rewrite(new URL("/maintenance", req.url));
   }
 
