@@ -279,7 +279,8 @@ export default async function AdminOrdersPage({
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "minmax(260px, 1.4fr) minmax(180px, 0.8fr) minmax(180px, 0.8fr) auto",
+                  gridTemplateColumns:
+                    "minmax(260px, 1.4fr) minmax(180px, 0.8fr) minmax(180px, 0.8fr) auto",
                   gap: 16,
                   alignItems: "start",
                 }}
