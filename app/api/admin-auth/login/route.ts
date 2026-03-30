@@ -30,7 +30,9 @@ export async function POST(req: Request) {
     });
   }
 
-  const response = NextResponse.redirect(new URL("/admin/orders", req.url));
+  const response = NextResponse.redirect(new URL("/admin/orders", req.url), {
+    status: 303,
+  });
 
   response.cookies.set(ADMIN_COOKIE, "1", {
     httpOnly: true,
