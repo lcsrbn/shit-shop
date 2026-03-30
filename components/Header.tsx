@@ -10,6 +10,9 @@ export default function Header() {
     return null;
   }
 
+  const isOrdersPage = pathname === "/orders";
+  const isLoginPage = pathname === "/login";
+
   return (
     <header
       style={{
@@ -44,7 +47,28 @@ export default function Header() {
         }}
       >
         <Link href="/orders">Ordini</Link>
-        <Link href="/login">Login</Link>
+
+        {isOrdersPage ? (
+          <form action="/api/logout" method="post">
+            <button
+              type="submit"
+              style={{
+                border: 0,
+                background: "transparent",
+                padding: 0,
+                margin: 0,
+                color: "#551A8B",
+                textDecoration: "underline",
+                cursor: "pointer",
+                font: "inherit",
+              }}
+            >
+              Logout
+            </button>
+          </form>
+        ) : !isLoginPage ? (
+          <Link href="/login">Login</Link>
+        ) : null}
       </nav>
     </header>
   );
