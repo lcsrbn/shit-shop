@@ -19,6 +19,7 @@ export function proxy(req: NextRequest) {
     pathname === "/maintenance" ||
     pathname === "/login" ||
     pathname === "/orders" ||
+    pathname === "/admin" ||
     pathname === "/admin/login" ||
     pathname.startsWith("/admin/orders") ||
     pathname.startsWith("/api/orders") ||
@@ -33,7 +34,10 @@ export function proxy(req: NextRequest) {
   }
 
   if (MAINTENANCE_MODE && !hasAdminSession) {
-    return NextResponse.rewrite(new URL("/maintenance", req.url));
+    const url = req.nextUrl.clone();
+    url.pathname = "/maintenance";
+    url.search = "";
+    return NextResponse.redirect(url);
   }
 
   return NextResponse.next();

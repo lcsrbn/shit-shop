@@ -1,7 +1,7 @@
 "use client";
 
-import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 export default function Header() {
   const pathname = usePathname();
@@ -13,42 +13,39 @@ export default function Header() {
   return (
     <header
       style={{
-        position: "sticky",
-        top: 0,
-        zIndex: 1000,
-        backdropFilter: "blur(10px)",
-        background: "rgba(255,255,255,.85)",
+        height: 76,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 16,
+        padding: "0 24px",
         borderBottom: "1px solid rgba(0,0,0,.08)",
+        background: "#fff",
       }}
     >
-      <div
+      <Link
+        href="/"
         style={{
-          maxWidth: 1100,
-          margin: "0 auto",
-          padding: "14px 20px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
+          textDecoration: "none",
+          color: "#111",
+          fontWeight: 900,
+          fontSize: 18,
         }}
       >
-        <Link
-          href="/"
-          style={{
-            textDecoration: "none",
-            color: "#111",
-            fontWeight: 900,
-            letterSpacing: "-0.02em",
-          }}
-        >
-          shit-shop
-        </Link>
+        shit-shop
+      </Link>
 
-        <nav style={{ display: "flex", gap: 14 }}>
-          <Link href="/orders">Ordini</Link>
-          <Link href="/login">Login</Link>
-          <Link href="/admin/orders">Admin</Link>
-        </nav>
-      </div>
+      <nav
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 18,
+          fontSize: 15,
+        }}
+      >
+        <Link href="/orders">Ordini</Link>
+        <Link href="/login">Login</Link>
+      </nav>
     </header>
   );
 }
