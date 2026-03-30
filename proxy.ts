@@ -8,6 +8,7 @@ export function proxy(req: NextRequest) {
 
   const hasAdminSession = req.cookies.get(ADMIN_COOKIE)?.value === "1";
 
+  // ✅ STATIC
   const isStaticAsset =
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon") ||
@@ -15,24 +16,31 @@ export function proxy(req: NextRequest) {
     pathname.startsWith("/public") ||
     pathname.includes(".");
 
-  const isAlwaysAllowed =
-    pathname === "/maintenance" ||
+  // ✅ ADMIN (SEMPRE PERMESSO)
+  const isAdminRoute =
+    pathname === "/admin" ||
+    pathname.startsWith("/admin/");
+
+  // ✅ API SEMPRE PERMESSE
+  const isApiAllowed =
+    pathname.startsWith("/api/stripe/webhook") ||
+    pathname.startsWith("/api/admin-auth") ||
+    pathname.startsWith("/api/admin/orders/update-status") ||
+    pathname.startsWith("/api/orders") ||
+    pathname.startsWith("/api/logout");
+
+  // ✅ CLIENT ROUTES
+  const isClientAllowed =
     pathname === "/login" ||
     pathname === "/orders" ||
-    pathname === "/admin" ||
-    pathname === "/admin/login" ||
-    pathname.startsWith("/admin/orders") ||
-    pathname.startsWith("/api/orders") ||
-    pathname.startsWith("/api/logout") ||
-    pathname.startsWith("/api/admin-auth/login") ||
-    pathname.startsWith("/api/admin-auth/logout") ||
-    pathname.startsWith("/api/admin/orders/update-status") ||
-    pathname.startsWith("/api/stripe/webhook");
+    pathname === "/maintenance";
 
-  if (isStaticAsset || isAlwaysAllowed) {
+  // 🔓 SEMPRE PASSARE QUESTE
+  if (isStaticAsset || isAdminRoute || isApiAllowed || isClientAllowed) {
     return NextResponse.next();
   }
 
+  // 🚧 MAINTENANCE SOLO PER UTENTI NORMALI
   if (MAINTENANCE_MODE && !hasAdminSession) {
     const url = req.nextUrl.clone();
     url.pathname = "/maintenance";
