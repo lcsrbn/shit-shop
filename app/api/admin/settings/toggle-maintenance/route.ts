@@ -15,7 +15,6 @@ export async function POST(req: Request) {
 
     const supabase = getSupabaseAdminClient();
 
-    // 🔍 Leggi stato attuale
     const { data: current, error: readError } = await supabase
       .from("app_settings")
       .select("value")
@@ -24,15 +23,11 @@ export async function POST(req: Request) {
 
     if (readError && readError.code !== "PGRST116") {
       console.error("Read maintenance error:", readError);
-      return NextResponse.json(
-        { error: readError.message },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: readError.message }, { status: 500 });
     }
 
     const currentValue = current?.value === true;
 
-    // 🔄 Toggle
     const { error: writeError } = await supabase
       .from("app_settings")
       .upsert({
@@ -42,15 +37,11 @@ export async function POST(req: Request) {
 
     if (writeError) {
       console.error("Write maintenance error:", writeError);
-      return NextResponse.json(
-        { error: writeError.message },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: writeError.message }, { status: 500 });
     }
 
-    return NextResponse.json({
-      ok: true,
-      maintenance: !currentValue,
+    return NextResponse.redirect(new URL("/admin/orders", req.url), {
+      status: 303,
     });
   } catch (err) {
     console.error("Toggle maintenance fatal error:", err);
