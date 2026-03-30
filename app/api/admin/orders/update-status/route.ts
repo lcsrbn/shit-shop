@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
-import { getSupabaseServerAuthClient } from "@/lib/supabase-server-auth";
+import { cookies } from "next/headers";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+
+const ADMIN_COOKIE = "shit_shop_admin_session";
 
 const ALLOWED_STATUSES = [
   "pending",
@@ -18,26 +20,11 @@ function isAllowedStatus(value: string): boolean {
 
 export async function POST(req: Request) {
   try {
-    const supabaseAuth = await getSupabaseServerAuthClient();
+    const cookieStore = await cookies();
+    const hasAdminSession = cookieStore.get(ADMIN_COOKIE)?.value === "1";
 
-    const {
-      data: { user },
-      error: userError,
-    } = await supabaseAuth.auth.getUser();
-
-    if (userError || !user) {
+    if (!hasAdminSession) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const adminEmails = (process.env.ADMIN_EMAILS ?? "")
-      .split(",")
-      .map((v) => v.trim().toLowerCase())
-      .filter(Boolean);
-
-    const currentEmail = (user.email ?? "").toLowerCase();
-
-    if (adminEmails.length > 0 && !adminEmails.includes(currentEmail)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const body = await req.json();
@@ -58,9 +45,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     }
 
-    const supabaseAdmin = getSupabaseAdminClient();
+    const supabase = getSupabaseAdminClient();
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await supabase
       .from("orders")
       .update({ status })
       .eq("id", orderId)
@@ -84,4 +71,3 @@ export async function POST(req: Request) {
     );
   }
 }
-// force rebuild

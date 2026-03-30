@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
-import { getSupabaseServerAuthClient } from "@/lib/supabase-server-auth";
+import { cookies } from "next/headers";
+import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { OrderStatusSelect } from "@/components/admin/OrderStatusSelect";
+
+const ADMIN_COOKIE = "shit_shop_admin_session";
 
 type OrderRow = {
   id: string;
@@ -143,25 +146,14 @@ function formatDate(value: string | null) {
 }
 
 async function getOrders() {
-  const supabase = await getSupabaseServerAuthClient();
+  const cookieStore = await cookies();
+  const hasAdminSession = cookieStore.get(ADMIN_COOKIE)?.value === "1";
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) redirect("/login");
-
-  const adminEmails = (process.env.ADMIN_EMAILS ?? "")
-    .split(",")
-    .map((value) => value.trim().toLowerCase())
-    .filter(Boolean);
-
-  if (adminEmails.length > 0) {
-    const currentEmail = (user.email ?? "").toLowerCase();
-    if (!adminEmails.includes(currentEmail)) {
-      redirect("/");
-    }
+  if (!hasAdminSession) {
+    redirect("/admin/login");
   }
+
+  const supabase = getSupabaseAdminClient();
 
   const { data, error } = await supabase
     .from("orders")
@@ -171,13 +163,13 @@ async function getOrders() {
   if (error) {
     console.error("Admin orders query error:", error);
     return {
-      userEmail: user.email ?? null,
+      adminLabel: "Admin session",
       orders: [] as OrderRow[],
     };
   }
 
   return {
-    userEmail: user.email ?? null,
+    adminLabel: "Admin session",
     orders: (data as OrderRow[]) ?? [],
   };
 }
@@ -189,7 +181,7 @@ export default async function AdminOrdersPage({
   const statusFilter = resolvedSearchParams.status ?? "all";
   const query = (resolvedSearchParams.q ?? "").trim().toLowerCase();
 
-  const { userEmail, orders } = await getOrders();
+  const { adminLabel, orders } = await getOrders();
 
   const filteredOrders = orders.filter((order) => {
     const matchesStatus =
@@ -226,7 +218,7 @@ export default async function AdminOrdersPage({
       </h1>
 
       <p style={{ marginTop: 10, opacity: 0.75 }}>
-        Loggato come: {userEmail ?? "admin"}
+        Loggato come: {adminLabel}
       </p>
 
       <form
