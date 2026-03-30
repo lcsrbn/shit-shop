@@ -6,12 +6,14 @@ import { usePathname } from "next/navigation";
 export default function Header() {
   const pathname = usePathname();
 
-  if (pathname === "/maintenance") {
-    return null;
-  }
-
+  const isMaintenancePage = pathname === "/maintenance";
+  const isAdminRoute = pathname === "/admin" || pathname.startsWith("/admin/");
   const isOrdersPage = pathname === "/orders";
   const isLoginPage = pathname === "/login";
+
+  if (isMaintenancePage || isAdminRoute) {
+    return null;
+  }
 
   return (
     <header
