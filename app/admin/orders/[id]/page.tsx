@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { OrderStatusSelect } from "@/components/admin/OrderStatusSelect";
@@ -24,8 +24,11 @@ type OrderRow = {
   tax_code: string | null;
   order_note: string | null;
   currency: string | null;
+  amount_subtotal: number | null;
   amount_total: number | null;
   items_json: unknown;
+  stripe_session_id: string | null;
+  stripe_payment_intent_id: string | null;
 };
 
 type OrderItemRow = {
@@ -36,10 +39,9 @@ type OrderItemRow = {
   lineTotalEUR: number;
 };
 
-type AdminOrdersPageProps = {
-  searchParams?: Promise<{
-    status?: string;
-    q?: string;
+type AdminOrderDetailPageProps = {
+  params: Promise<{
+    id: string;
   }>;
 };
 
@@ -152,7 +154,7 @@ function formatDate(value: string | null) {
   }
 }
 
-async function getAdminData() {
+async function getOrder(id: string): Promise<OrderRow> {
   const cookieStore = await cookies();
   const hasAdminSession = cookieStore.get(ADMIN_COOKIE)?.value === "1";
 
@@ -162,70 +164,35 @@ async function getAdminData() {
 
   const supabase = getSupabaseAdminClient();
 
-  const [
-    { data: ordersData, error: ordersError },
-    { data: settingsData, error: settingsError },
-  ] = await Promise.all([
-    supabase.from("orders").select("*").order("created_at", { ascending: false }),
-    supabase
-      .from("app_settings")
-      .select("value")
-      .eq("key", "maintenance_mode")
-      .single(),
-  ]);
+  const { data, error } = await supabase
+    .from("orders")
+    .select("*")
+    .eq("id", id)
+    .single();
 
-  if (ordersError) {
-    console.error("Admin orders query error:", ordersError);
+  if (error || !data) {
+    notFound();
   }
 
-  if (settingsError) {
-    console.error("Admin settings query error:", settingsError);
-  }
-
-  return {
-    adminLabel: "Admin session",
-    orders: (ordersData as OrderRow[]) ?? [],
-    maintenanceMode: settingsData?.value === true,
-  };
+  return data as OrderRow;
 }
 
-export default async function AdminOrdersPage({
-  searchParams,
-}: AdminOrdersPageProps) {
-  const resolvedSearchParams = (await searchParams) ?? {};
-  const statusFilter = resolvedSearchParams.status ?? "all";
-  const query = (resolvedSearchParams.q ?? "").trim().toLowerCase();
-
-  const { adminLabel, orders, maintenanceMode } = await getAdminData();
-
-  const filteredOrders = orders.filter((order) => {
-    const matchesStatus =
-      statusFilter === "all" ||
-      (order.status ?? "").toLowerCase() === statusFilter.toLowerCase();
-
-    const searchable = [
-      order.order_id ?? "",
-      order.id ?? "",
-      order.customer_email ?? "",
-      order.customer_name ?? "",
-    ]
-      .join(" ")
-      .toLowerCase();
-
-    const matchesQuery = !query || searchable.includes(query);
-
-    return matchesStatus && matchesQuery;
-  });
+export default async function AdminOrderDetailPage({
+  params,
+}: AdminOrderDetailPageProps) {
+  const { id } = await params;
+  const order = await getOrder(id);
+  const items = normalizeItemsJson(order.items_json);
 
   return (
-    <main style={{ padding: 30, maxWidth: 1200, margin: "0 auto" }}>
+    <main style={{ padding: 30, maxWidth: 1100, margin: "0 auto" }}>
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
-          gap: 12,
-          alignItems: "flex-start",
+          gap: 16,
           flexWrap: "wrap",
+          alignItems: "flex-start",
         }}
       >
         <div>
@@ -239,322 +206,196 @@ export default async function AdminOrdersPage({
               letterSpacing: "-0.03em",
             }}
           >
-            Admin Orders
+            Dettaglio ordine
           </h1>
 
-          <p style={{ marginTop: 10, opacity: 0.75 }}>
-            Loggato come: {adminLabel}
-          </p>
-
-          <p style={{ marginTop: 6, opacity: 0.75 }}>
-            Maintenance: <b>{maintenanceMode ? "ON" : "OFF"}</b>
-          </p>
+          <div style={{ marginTop: 10, opacity: 0.8 }}>
+            <div>
+              Ordine: <b>{order.order_id ?? order.id}</b>
+            </div>
+            <div>DB id: {order.id}</div>
+            <div>User id: {order.user_id ?? "—"}</div>
+          </div>
         </div>
 
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <form action="/api/admin/settings/toggle-maintenance" method="post">
-            <button
-              type="submit"
-              style={{
-                borderRadius: 999,
-                border: "1px solid rgba(0,0,0,.12)",
-                background: "#fff",
-                padding: "10px 14px",
-                color: "#111",
-                fontWeight: 800,
-                cursor: "pointer",
-              }}
-            >
-              {maintenanceMode ? "Disattiva maintenance" : "Attiva maintenance"}
-            </button>
-          </form>
-
-          <form action="/api/admin-auth/logout" method="post">
-            <button
-              type="submit"
-              style={{
-                borderRadius: 999,
-                border: "1px solid rgba(0,0,0,.12)",
-                background: "#fff",
-                padding: "10px 14px",
-                color: "#111",
-                fontWeight: 800,
-                cursor: "pointer",
-              }}
-            >
-              Logout admin
-            </button>
-          </form>
+          <Link
+            href="/admin/orders"
+            style={{
+              borderRadius: 999,
+              border: "1px solid rgba(0,0,0,.12)",
+              background: "#fff",
+              padding: "10px 14px",
+              color: "#111",
+              fontWeight: 800,
+              textDecoration: "none",
+            }}
+          >
+            ← Torna alla lista
+          </Link>
         </div>
       </div>
 
-      <form
-        method="GET"
+      <section
         style={{
-          marginTop: 20,
-          display: "flex",
-          gap: 10,
-          flexWrap: "wrap",
-          alignItems: "center",
+          marginTop: 24,
+          border: "1px solid rgba(0,0,0,.10)",
+          borderRadius: 18,
+          padding: 18,
+          background: "rgba(255,255,255,.92)",
         }}
       >
-        <input
-          type="text"
-          name="q"
-          defaultValue={resolvedSearchParams.q ?? ""}
-          placeholder="Cerca email, nome, order id..."
+        <div
           style={{
-            flex: "1 1 280px",
-            minWidth: 240,
-            padding: "10px 12px",
-            borderRadius: 10,
-            border: "1px solid rgba(0,0,0,.14)",
-            background: "#fff",
-          }}
-        />
-
-        <select
-          name="status"
-          defaultValue={statusFilter}
-          style={{
-            padding: "10px 12px",
-            borderRadius: 10,
-            border: "1px solid rgba(0,0,0,.14)",
-            background: "#fff",
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+            gap: 18,
           }}
         >
-          <option value="all">Tutti gli stati</option>
-          <option value="paid">Paid</option>
-          <option value="pending">Pending</option>
-          <option value="failed">Failed</option>
-          <option value="cancelled">Cancelled</option>
-          <option value="shipped">Shipped</option>
-        </select>
+          <div>
+            <div style={{ fontSize: 13, opacity: 0.65 }}>Cliente</div>
+            <div style={{ fontWeight: 900, fontSize: 22 }}>
+              {order.customer_name ?? "—"}
+            </div>
+            <div style={{ marginTop: 4 }}>{order.customer_email ?? "—"}</div>
+            <div>{order.customer_phone ?? "—"}</div>
 
-        <button
-          type="submit"
+            <div style={{ marginTop: 12 }}>
+              Cod. fiscale: <b>{order.tax_code ?? "—"}</b>
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: 13, opacity: 0.65 }}>Spedizione</div>
+            <div>{order.shipping_line1 ?? "—"}</div>
+            {order.shipping_line2 ? <div>{order.shipping_line2}</div> : null}
+            <div>
+              {[order.shipping_postal_code, order.shipping_city]
+                .filter(Boolean)
+                .join(" ")}
+            </div>
+            <div>
+              {[order.shipping_state, order.shipping_country]
+                .filter(Boolean)
+                .join(" · ")}
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: 13, opacity: 0.65 }}>Ordine</div>
+            <div>
+              Creato il: <b>{formatDate(order.created_at)}</b>
+            </div>
+            <div style={{ marginTop: 8 }}>
+              Stato attuale: <b>{order.status ?? "—"}</b>
+            </div>
+            <div style={{ marginTop: 8 }}>
+              <OrderStatusSelect
+                orderId={order.id}
+                initialStatus={order.status}
+              />
+            </div>
+            <div style={{ marginTop: 12 }}>
+              Subtotale:{" "}
+              <b>{formatMoneyCents(order.amount_subtotal, order.currency)}</b>
+            </div>
+            <div>
+              Totale: <b>{formatMoneyCents(order.amount_total, order.currency)}</b>
+            </div>
+          </div>
+        </div>
+
+        <div
           style={{
-            borderRadius: 999,
-            border: "1px solid rgba(0,0,0,.12)",
-            background: "#fff",
-            padding: "10px 14px",
-            color: "#111",
-            fontWeight: 800,
-            cursor: "pointer",
+            marginTop: 18,
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+            gap: 18,
           }}
         >
-          Filtra
-        </button>
-      </form>
+          <div>
+            <div style={{ fontSize: 13, opacity: 0.65 }}>Note ordine</div>
+            <div style={{ whiteSpace: "pre-wrap" }}>
+              {order.order_note ?? "—"}
+            </div>
+          </div>
 
-      <div style={{ marginTop: 12, opacity: 0.75, fontSize: 14 }}>
-        Ordini trovati: <b>{filteredOrders.length}</b>
-      </div>
+          <div>
+            <div style={{ fontSize: 13, opacity: 0.65 }}>Stripe</div>
+            <div style={{ wordBreak: "break-all" }}>
+              Session: {order.stripe_session_id ?? "—"}
+            </div>
+            <div style={{ marginTop: 8, wordBreak: "break-all" }}>
+              Payment intent: {order.stripe_payment_intent_id ?? "—"}
+            </div>
+          </div>
+        </div>
+      </section>
 
-      <div style={{ marginTop: 22, display: "grid", gap: 16 }}>
-        {filteredOrders.length === 0 ? (
-          <section
+      <section
+        style={{
+          marginTop: 18,
+          border: "1px solid rgba(0,0,0,.10)",
+          borderRadius: 18,
+          padding: 18,
+          background: "rgba(255,255,255,.92)",
+        }}
+      >
+        <div
+          style={{
+            fontSize: 13,
+            opacity: 0.65,
+            marginBottom: 12,
+          }}
+        >
+          Line items
+        </div>
+
+        {items.length === 0 ? (
+          <div
             style={{
-              border: "1px solid rgba(0,0,0,.10)",
-              borderRadius: 18,
-              padding: 18,
-              background: "rgba(255,255,255,.92)",
+              border: "1px dashed rgba(0,0,0,.12)",
+              borderRadius: 14,
+              padding: 14,
+              opacity: 0.8,
             }}
           >
-            <p style={{ margin: 0, opacity: 0.8 }}>
-              Nessun ordine trovato con i filtri correnti.
-            </p>
-          </section>
+            Nessun line item disponibile.
+          </div>
         ) : (
-          filteredOrders.map((order) => {
-            const items = normalizeItemsJson(order.items_json);
-
-            return (
-              <section
-                key={order.id}
+          <div style={{ display: "grid", gap: 10 }}>
+            {items.map((item, index) => (
+              <div
+                key={`${order.id}-${index}`}
                 style={{
-                  border: "1px solid rgba(0,0,0,.10)",
-                  borderRadius: 18,
-                  padding: 18,
-                  background: "rgba(255,255,255,.92)",
+                  border: "1px solid rgba(0,0,0,.08)",
+                  borderRadius: 14,
+                  padding: 14,
+                  background: "rgba(0,0,0,.02)",
                 }}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: 12,
-                    flexWrap: "wrap",
-                    alignItems: "flex-start",
-                  }}
-                >
-                  <div>
-                    <div style={{ fontSize: 13, opacity: 0.65 }}>Ordine</div>
-                    <div style={{ fontWeight: 950, fontSize: 18 }}>
-                      {order.order_id ?? order.id}
-                    </div>
-                    <div style={{ marginTop: 6, fontSize: 13, opacity: 0.75 }}>
-                      DB id: {order.id}
-                    </div>
-                    <div style={{ fontSize: 13, opacity: 0.75 }}>
-                      User id: {order.user_id ?? "—"}
-                    </div>
-                    <div style={{ marginTop: 12 }}>
-                      <Link
-                        href={`/admin/orders/${order.id}`}
-                        style={{
-                          display: "inline-block",
-                          borderRadius: 999,
-                          border: "1px solid rgba(0,0,0,.12)",
-                          background: "#fff",
-                          padding: "8px 12px",
-                          color: "#111",
-                          fontWeight: 800,
-                          textDecoration: "none",
-                        }}
-                      >
-                        Apri dettaglio
-                      </Link>
-                    </div>
-                  </div>
-
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: 13, opacity: 0.65 }}>Creato il</div>
-                    <div style={{ fontWeight: 900 }}>
-                      {formatDate(order.created_at)}
-                    </div>
-
-                    <div style={{ marginTop: 8 }}>
-                      Stato attuale: <b>{order.status ?? "—"}</b>
-                    </div>
-
-                    <div
-                      style={{
-                        marginTop: 8,
-                        display: "flex",
-                        justifyContent: "flex-end",
-                      }}
-                    >
-                      <OrderStatusSelect
-                        orderId={order.id}
-                        initialStatus={order.status}
-                      />
-                    </div>
-
-                    <div style={{ marginTop: 8 }}>
-                      Totale:{" "}
-                      <b>{formatMoneyCents(order.amount_total, order.currency)}</b>
-                    </div>
-                  </div>
+                <div style={{ fontWeight: 900, fontSize: 18 }}>
+                  {item.productName}
                 </div>
-
-                <div
-                  style={{
-                    marginTop: 16,
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-                    gap: 14,
-                  }}
-                >
-                  <div>
-                    <div style={{ fontSize: 13, opacity: 0.65 }}>Cliente</div>
-                    <div style={{ fontWeight: 800 }}>
-                      {order.customer_name ?? "—"}
-                    </div>
-                    <div style={{ opacity: 0.8 }}>
-                      {order.customer_email ?? "—"}
-                    </div>
-                    <div style={{ opacity: 0.8 }}>
-                      {order.customer_phone ?? "—"}
-                    </div>
-                    <div style={{ marginTop: 8, opacity: 0.8 }}>
-                      Cod. fiscale: {order.tax_code ?? "—"}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style={{ fontSize: 13, opacity: 0.65 }}>Spedizione</div>
-                    <div>{order.shipping_line1 ?? "—"}</div>
-                    {order.shipping_line2 ? <div>{order.shipping_line2}</div> : null}
-                    <div>
-                      {[order.shipping_postal_code, order.shipping_city]
-                        .filter(Boolean)
-                        .join(" ")}
-                    </div>
-                    <div>
-                      {[order.shipping_state, order.shipping_country]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style={{ fontSize: 13, opacity: 0.65 }}>Note ordine</div>
-                    <div style={{ whiteSpace: "pre-wrap" }}>
-                      {order.order_note ?? "—"}
-                    </div>
-                  </div>
+                <div style={{ marginTop: 4, opacity: 0.8 }}>
+                  Variante: {item.variantName}
                 </div>
-
-                <div style={{ marginTop: 18 }}>
-                  <div
-                    style={{
-                      fontSize: 13,
-                      opacity: 0.65,
-                      marginBottom: 10,
-                    }}
-                  >
-                    Line items
-                  </div>
-
-                  {items.length === 0 ? (
-                    <div
-                      style={{
-                        border: "1px dashed rgba(0,0,0,.12)",
-                        borderRadius: 14,
-                        padding: 14,
-                        opacity: 0.8,
-                      }}
-                    >
-                      Nessun line item disponibile.
-                    </div>
-                  ) : (
-                    <div style={{ display: "grid", gap: 10 }}>
-                      {items.map((item, index) => (
-                        <div
-                          key={`${order.id}-${index}`}
-                          style={{
-                            border: "1px solid rgba(0,0,0,.08)",
-                            borderRadius: 14,
-                            padding: 12,
-                            background: "rgba(0,0,0,.02)",
-                          }}
-                        >
-                          <div style={{ fontWeight: 900 }}>{item.productName}</div>
-                          <div style={{ marginTop: 4, opacity: 0.8 }}>
-                            Variante: {item.variantName}
-                          </div>
-                          <div style={{ marginTop: 8 }}>
-                            Qty: <b>{item.qty}</b>
-                          </div>
-                          <div>
-                            Prezzo unitario:{" "}
-                            <b>{formatMoneyNumber(item.unitPriceEUR, order.currency)}</b>
-                          </div>
-                          <div>
-                            Totale riga:{" "}
-                            <b>{formatMoneyNumber(item.lineTotalEUR, order.currency)}</b>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                <div style={{ marginTop: 10 }}>
+                  Qty: <b>{item.qty}</b>
                 </div>
-              </section>
-            );
-          })
+                <div>
+                  Prezzo unitario:{" "}
+                  <b>{formatMoneyNumber(item.unitPriceEUR, order.currency)}</b>
+                </div>
+                <div>
+                  Totale riga:{" "}
+                  <b>{formatMoneyNumber(item.lineTotalEUR, order.currency)}</b>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
-      </div>
+      </section>
     </main>
   );
 }
