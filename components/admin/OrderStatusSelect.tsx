@@ -18,13 +18,6 @@ export function OrderStatusSelect({
     const previousStatus = status;
     const url = "/api/admin/orders/update-status";
 
-    console.log("UPDATE_STATUS_CLICK", {
-      orderId,
-      previousStatus,
-      newStatus,
-      url,
-    });
-
     setStatus(newStatus);
 
     startTransition(async () => {
@@ -41,11 +34,6 @@ export function OrderStatusSelect({
         });
 
         const text = await res.text();
-        console.log("UPDATE_STATUS_RESPONSE", {
-          status: res.status,
-          ok: res.ok,
-          body: text,
-        });
 
         let payload: any = null;
         try {

@@ -117,7 +117,10 @@ function normalizeItemsJson(value: unknown): OrderItemRow[] {
   return [];
 }
 
-function formatMoneyCents(value: number | null, currency: string | null = "EUR") {
+function formatMoneyCents(
+  value: number | null,
+  currency: string | null = "EUR"
+) {
   if (value == null) return "—";
 
   return new Intl.NumberFormat("it-IT", {
@@ -126,7 +129,10 @@ function formatMoneyCents(value: number | null, currency: string | null = "EUR")
   }).format(value / 100);
 }
 
-function formatMoneyNumber(value: number | null, currency: string | null = "EUR") {
+function formatMoneyNumber(
+  value: number | null,
+  currency: string | null = "EUR"
+) {
   if (value == null || !Number.isFinite(value)) return "—";
 
   return new Intl.NumberFormat("it-IT", {
@@ -145,7 +151,7 @@ function formatDate(value: string | null) {
   }
 }
 
-async function getOrders() {
+async function getAdminData() {
   const cookieStore = await cookies();
   const hasAdminSession = cookieStore.get(ADMIN_COOKIE)?.value === "1";
 
@@ -155,22 +161,28 @@ async function getOrders() {
 
   const supabase = getSupabaseAdminClient();
 
-  const { data, error } = await supabase
-    .from("orders")
-    .select("*")
-    .order("created_at", { ascending: false });
+  const [{ data: ordersData, error: ordersError }, { data: settingsData, error: settingsError }] =
+    await Promise.all([
+      supabase.from("orders").select("*").order("created_at", { ascending: false }),
+      supabase
+        .from("app_settings")
+        .select("value")
+        .eq("key", "maintenance_mode")
+        .single(),
+    ]);
 
-  if (error) {
-    console.error("Admin orders query error:", error);
-    return {
-      adminLabel: "Admin session",
-      orders: [] as OrderRow[],
-    };
+  if (ordersError) {
+    console.error("Admin orders query error:", ordersError);
+  }
+
+  if (settingsError) {
+    console.error("Admin settings query error:", settingsError);
   }
 
   return {
     adminLabel: "Admin session",
-    orders: (data as OrderRow[]) ?? [],
+    orders: (ordersData as OrderRow[]) ?? [],
+    maintenanceMode: settingsData?.value === true,
   };
 }
 
@@ -181,7 +193,7 @@ export default async function AdminOrdersPage({
   const statusFilter = resolvedSearchParams.status ?? "all";
   const query = (resolvedSearchParams.q ?? "").trim().toLowerCase();
 
-  const { adminLabel, orders } = await getOrders();
+  const { adminLabel, orders, maintenanceMode } = await getAdminData();
 
   const filteredOrders = orders.filter((order) => {
     const matchesStatus =
@@ -230,24 +242,47 @@ export default async function AdminOrdersPage({
           <p style={{ marginTop: 10, opacity: 0.75 }}>
             Loggato come: {adminLabel}
           </p>
+
+          <p style={{ marginTop: 6, opacity: 0.75 }}>
+            Maintenance: <b>{maintenanceMode ? "ON" : "OFF"}</b>
+          </p>
         </div>
 
-        <form action="/api/admin-auth/logout" method="post">
-          <button
-            type="submit"
-            style={{
-              borderRadius: 999,
-              border: "1px solid rgba(0,0,0,.12)",
-              background: "#fff",
-              padding: "10px 14px",
-              color: "#111",
-              fontWeight: 800,
-              cursor: "pointer",
-            }}
-          >
-            Logout admin
-          </button>
-        </form>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <form action="/api/admin/settings/toggle-maintenance" method="post">
+            <button
+              type="submit"
+              style={{
+                borderRadius: 999,
+                border: "1px solid rgba(0,0,0,.12)",
+                background: "#fff",
+                padding: "10px 14px",
+                color: "#111",
+                fontWeight: 800,
+                cursor: "pointer",
+              }}
+            >
+              {maintenanceMode ? "Disattiva maintenance" : "Attiva maintenance"}
+            </button>
+          </form>
+
+          <form action="/api/admin-auth/logout" method="post">
+            <button
+              type="submit"
+              style={{
+                borderRadius: 999,
+                border: "1px solid rgba(0,0,0,.12)",
+                background: "#fff",
+                padding: "10px 14px",
+                color: "#111",
+                fontWeight: 800,
+                cursor: "pointer",
+              }}
+            >
+              Logout admin
+            </button>
+          </form>
+        </div>
       </div>
 
       <form
@@ -373,7 +408,13 @@ export default async function AdminOrdersPage({
                       Stato attuale: <b>{order.status ?? "—"}</b>
                     </div>
 
-                    <div style={{ marginTop: 8, display: "flex", justifyContent: "flex-end" }}>
+                    <div
+                      style={{
+                        marginTop: 8,
+                        display: "flex",
+                        justifyContent: "flex-end",
+                      }}
+                    >
                       <OrderStatusSelect
                         orderId={order.id}
                         initialStatus={order.status}
