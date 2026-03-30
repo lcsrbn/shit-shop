@@ -204,22 +204,51 @@ export default async function AdminOrdersPage({
 
   return (
     <main style={{ padding: 30, maxWidth: 1200, margin: "0 auto" }}>
-      <div style={{ fontSize: 13, opacity: 0.65 }}>shit-shop admin</div>
-
-      <h1
+      <div
         style={{
-          margin: "6px 0 0",
-          fontSize: 34,
-          fontWeight: 950,
-          letterSpacing: "-0.03em",
+          display: "flex",
+          justifyContent: "space-between",
+          gap: 12,
+          alignItems: "flex-start",
+          flexWrap: "wrap",
         }}
       >
-        Admin Orders
-      </h1>
+        <div>
+          <div style={{ fontSize: 13, opacity: 0.65 }}>shit-shop admin</div>
 
-      <p style={{ marginTop: 10, opacity: 0.75 }}>
-        Loggato come: {adminLabel}
-      </p>
+          <h1
+            style={{
+              margin: "6px 0 0",
+              fontSize: 34,
+              fontWeight: 950,
+              letterSpacing: "-0.03em",
+            }}
+          >
+            Admin Orders
+          </h1>
+
+          <p style={{ marginTop: 10, opacity: 0.75 }}>
+            Loggato come: {adminLabel}
+          </p>
+        </div>
+
+        <form action="/api/admin-auth/logout" method="post">
+          <button
+            type="submit"
+            style={{
+              borderRadius: 999,
+              border: "1px solid rgba(0,0,0,.12)",
+              background: "#fff",
+              padding: "10px 14px",
+              color: "#111",
+              fontWeight: 800,
+              cursor: "pointer",
+            }}
+          >
+            Logout admin
+          </button>
+        </form>
+      </div>
 
       <form
         method="GET"

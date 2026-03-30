@@ -79,39 +79,51 @@ export default async function OrdersPage() {
 
   return (
     <main style={{ padding: 30, maxWidth: 980, margin: "0 auto" }}>
-      <div style={{ fontSize: 13, opacity: 0.65 }}>shit-shop</div>
-
-      <h1
+      <div
         style={{
-          margin: "6px 0 0",
-          fontSize: 34,
-          fontWeight: 950,
-          letterSpacing: "-0.03em",
+          display: "flex",
+          justifyContent: "space-between",
+          gap: 12,
+          alignItems: "flex-start",
+          flexWrap: "wrap",
         }}
       >
-        I tuoi ordini
-      </h1>
+        <div>
+          <div style={{ fontSize: 13, opacity: 0.65 }}>shit-shop</div>
 
-      <p style={{ marginTop: 10, opacity: 0.75 }}>
-        Account: {userEmail ?? "utente loggato"}
-      </p>
+          <h1
+            style={{
+              margin: "6px 0 0",
+              fontSize: 34,
+              fontWeight: 950,
+              letterSpacing: "-0.03em",
+            }}
+          >
+            I tuoi ordini
+          </h1>
 
-      <form action="/api/logout" method="post" style={{ marginTop: 12 }}>
-        <button
-          type="submit"
-          style={{
-            borderRadius: 999,
-            border: "1px solid rgba(0,0,0,.12)",
-            background: "#fff",
-            padding: "10px 14px",
-            color: "#111",
-            fontWeight: 800,
-            cursor: "pointer",
-          }}
-        >
-          Logout
-        </button>
-      </form>
+          <p style={{ marginTop: 10, opacity: 0.75 }}>
+            Account: {userEmail ?? "utente loggato"}
+          </p>
+        </div>
+
+        <form action="/api/logout" method="post">
+          <button
+            type="submit"
+            style={{
+              borderRadius: 999,
+              border: "1px solid rgba(0,0,0,.12)",
+              background: "#fff",
+              padding: "10px 14px",
+              color: "#111",
+              fontWeight: 800,
+              cursor: "pointer",
+            }}
+          >
+            Logout
+          </button>
+        </form>
+      </div>
 
       <div style={{ marginTop: 18, display: "grid", gap: 14 }}>
         {orders.length === 0 ? (
