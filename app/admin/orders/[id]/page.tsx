@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { OrderStatusSelect } from "@/components/admin/OrderStatusSelect";
-import { normalizeItemsJson } from "@/lib/orders";
+import { normalizeItemsJson } from "@/lib/order";
 
 const ADMIN_COOKIE = "shit_shop_admin_session";
 

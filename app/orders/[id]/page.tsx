@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getSupabaseServerAuthClient } from "@/lib/supabase-server-auth";
-import { normalizeItemsJson } from "@/lib/orders";
+import { normalizeItemsJson } from "@/lib/order";
 
 type OrderRow = {
   id: string;
