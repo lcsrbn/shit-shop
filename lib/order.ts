@@ -24,6 +24,18 @@ export type LocalOrder = {
   items: PendingCartItem[];
 };
 
+/**
+ * 🔥 NUOVA SHAPE STABILE PER ORDINI (DB)
+ */
+export type OrderItem = {
+  product_id: string;
+  product_name: string;
+  variant_name: string;
+  quantity: number;
+  unit_price_eur: number;
+  line_total_eur: number;
+};
+
 export type OrderItemRow = {
   productName: string;
   variantName: string;
@@ -49,6 +61,9 @@ function safeJsonParse<T>(value: string | null, fallback: T): T {
   }
 }
 
+/**
+ * 🔒 NORMALIZZAZIONE STRONG DEL CARRELLO
+ */
 function toPendingCartItems(value: unknown): PendingCartItem[] {
   if (!Array.isArray(value)) return [];
 
@@ -59,9 +74,7 @@ function toPendingCartItems(value: unknown): PendingCartItem[] {
 
     if (typeof row.qty !== "number") return false;
 
-    if (typeof row.id === "string") {
-      return true;
-    }
+    if (typeof row.id === "string") return true;
 
     return (
       typeof row.productId === "string" && typeof row.variantId === "string"
@@ -69,11 +82,15 @@ function toPendingCartItems(value: unknown): PendingCartItem[] {
   });
 }
 
+/**
+ * 🔥 NORMALIZZAZIONE FORZATA PER STORAGE ORDINI LOCALI
+ */
 function toLocalOrder(value: PendingOrder): LocalOrder {
   return {
-    id: typeof value.id === "string" && value.id.length > 0
-      ? value.id
-      : `local-${Date.now()}`,
+    id:
+      typeof value.id === "string" && value.id.length > 0
+        ? value.id
+        : `local-${Date.now()}`,
     savedAt:
       typeof value.savedAt === "number" && Number.isFinite(value.savedAt)
         ? value.savedAt
@@ -83,13 +100,100 @@ function toLocalOrder(value: PendingOrder): LocalOrder {
         ? value.status
         : "paid",
     subtotalEUR:
-      typeof value.subtotalEUR === "number" && Number.isFinite(value.subtotalEUR)
+      typeof value.subtotalEUR === "number" &&
+      Number.isFinite(value.subtotalEUR)
         ? value.subtotalEUR
         : 0,
     items: toPendingCartItems(value.items),
   };
 }
 
+/**
+ * 🧠 NORMALIZZAZIONE ITEMS DB → UI
+ */
+function toNumber(value: unknown, fallback = 0): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+
+  if (typeof value === "string") {
+    const parsed = Number(value.replace(",", "."));
+    if (Number.isFinite(parsed)) return parsed;
+  }
+
+  return fallback;
+}
+
+function mapOrderItem(item: unknown): OrderItemRow | null {
+  if (!item || typeof item !== "object") return null;
+
+  const row = item as Record<string, unknown>;
+
+  // 🔥 nuova shape stabile
+  if (
+    typeof row.product_name === "string" &&
+    typeof row.quantity !== "undefined"
+  ) {
+    const qty = toNumber(row.quantity, 1);
+    const price = toNumber(row.unit_price_eur, 0);
+
+    return {
+      productName: row.product_name,
+      variantName: String(row.variant_name ?? "Default"),
+      qty,
+      unitPriceEUR: price,
+      lineTotalEUR: toNumber(row.line_total_eur, qty * price),
+    };
+  }
+
+  // 🧯 fallback legacy (compatibilità)
+  const qty = toNumber(row.qty ?? row.quantity, 1);
+  const price = toNumber(
+    row.unitPriceEUR ?? row.unit_price_eur ?? row.price,
+    0
+  );
+
+  return {
+    productName: String(
+      row.name ?? row.productName ?? row.title ?? "Prodotto"
+    ),
+    variantName: String(
+      row.variant ?? row.variantName ?? "Default"
+    ),
+    qty,
+    unitPriceEUR: price,
+    lineTotalEUR: toNumber(
+      row.lineTotalEUR ?? row.line_total_eur,
+      qty * price
+    ),
+  };
+}
+
+export function normalizeItemsJson(value: unknown): OrderItemRow[] {
+  if (Array.isArray(value)) {
+    return value
+      .map(mapOrderItem)
+      .filter((x): x is OrderItemRow => x !== null);
+  }
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return normalizeItemsJson(parsed);
+    } catch {
+      return [];
+    }
+  }
+
+  if (value && typeof value === "object") {
+    const single = mapOrderItem(value);
+    return single ? [single] : [];
+  }
+
+  return [];
+}
+
+/**
+ * STORAGE FUNCTIONS (invariati ma tipizzati meglio)
+ */
 export function savePendingOrder(order: PendingOrder) {
   if (!isBrowser()) return;
   window.localStorage.setItem(PENDING_ORDER_KEY, JSON.stringify(order));
@@ -103,9 +207,7 @@ export function readPendingOrder(): PendingOrder | null {
     null
   );
 
-  if (!raw || typeof raw !== "object") {
-    return null;
-  }
+  if (!raw || typeof raw !== "object") return null;
 
   return {
     ...raw,
@@ -144,85 +246,4 @@ export function readLocalOrders(): LocalOrder[] {
   return raw
     .filter((item): item is PendingOrder => !!item && typeof item === "object")
     .map(toLocalOrder);
-}
-
-function toNumber(value: unknown, fallback = 0): number {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return value;
-  }
-
-  if (typeof value === "string") {
-    const normalized = value.replace(",", ".").trim();
-    const parsed = Number(normalized);
-
-    if (Number.isFinite(parsed)) {
-      return parsed;
-    }
-  }
-
-  return fallback;
-}
-
-export function normalizeItemsJson(value: unknown): OrderItemRow[] {
-  const mapItem = (item: unknown): OrderItemRow | null => {
-    if (!item || typeof item !== "object") {
-      return null;
-    }
-
-    const row = item as Record<string, unknown>;
-    const qty = toNumber(row.qty ?? row.quantity, 1);
-    const unitPriceEUR = toNumber(
-      row.unitPriceEUR ?? row.unit_price_eur ?? row.price,
-      0
-    );
-
-    return {
-      productName: String(
-        row.name ?? row.productName ?? row.product_name ?? row.title ?? "Prodotto"
-      ),
-      variantName: String(
-        row.variant ?? row.variantName ?? row.variant_name ?? "Default"
-      ),
-      qty,
-      unitPriceEUR,
-      lineTotalEUR: toNumber(
-        row.lineTotalEUR ?? row.line_total_eur,
-        qty * unitPriceEUR
-      ),
-    };
-  };
-
-  if (Array.isArray(value)) {
-    return value
-      .map(mapItem)
-      .filter((item): item is OrderItemRow => item !== null);
-  }
-
-  if (typeof value === "string") {
-    try {
-      const parsed = JSON.parse(value);
-
-      if (Array.isArray(parsed)) {
-        return parsed
-          .map(mapItem)
-          .filter((item): item is OrderItemRow => item !== null);
-      }
-
-      if (parsed && typeof parsed === "object") {
-        const single = mapItem(parsed);
-        return single ? [single] : [];
-      }
-
-      return [];
-    } catch {
-      return [];
-    }
-  }
-
-  if (value && typeof value === "object") {
-    const single = mapItem(value);
-    return single ? [single] : [];
-  }
-
-  return [];
 }
