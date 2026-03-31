@@ -200,7 +200,7 @@ export default async function AdminOrderDetailPage({
             <div>Stato attuale: {order.status ?? "—"}</div>
 
             <div style={{ maxWidth: 240 }}>
-              <OrderStatusSelect orderId={order.id} currentStatus={order.status} />
+              <OrderStatusSelect orderId={order.id} initialStatus={order.status} />
             </div>
 
             <div>
