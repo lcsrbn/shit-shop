@@ -2,6 +2,12 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import {
+  ORDER_STATUSES,
+  getOrderStatusLabel,
+  normalizeOrderStatus,
+  type OrderStatus,
+} from "@/lib/order";
 
 export function OrderStatusSelect({
   orderId,
@@ -11,10 +17,12 @@ export function OrderStatusSelect({
   initialStatus: string | null;
 }) {
   const router = useRouter();
-  const [status, setStatus] = useState(initialStatus ?? "pending");
+  const [status, setStatus] = useState<OrderStatus>(
+    normalizeOrderStatus(initialStatus)
+  );
   const [isPending, startTransition] = useTransition();
 
-  function updateStatus(newStatus: string) {
+  function updateStatus(newStatus: OrderStatus) {
     const previousStatus = status;
     const url = "/api/admin/orders/update-status";
 
@@ -34,8 +42,8 @@ export function OrderStatusSelect({
         });
 
         const text = await res.text();
-
         let payload: any = null;
+
         try {
           payload = text ? JSON.parse(text) : null;
         } catch {}
@@ -58,7 +66,7 @@ export function OrderStatusSelect({
   return (
     <select
       value={status}
-      onChange={(e) => updateStatus(e.target.value)}
+      onChange={(e) => updateStatus(e.target.value as OrderStatus)}
       disabled={isPending}
       style={{
         padding: "6px 10px",
@@ -67,11 +75,11 @@ export function OrderStatusSelect({
         background: "#fff",
       }}
     >
-      <option value="pending">pending</option>
-      <option value="paid">paid</option>
-      <option value="shipped">shipped</option>
-      <option value="failed">failed</option>
-      <option value="cancelled">cancelled</option>
+      {ORDER_STATUSES.map((value) => (
+        <option key={value} value={value}>
+          {getOrderStatusLabel(value)}
+        </option>
+      ))}
     </select>
   );
 }

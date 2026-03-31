@@ -1,22 +1,9 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { isOrderStatus, normalizeOrderStatus } from "@/lib/order";
 
 const ADMIN_COOKIE = "shit_shop_admin_session";
-
-const ALLOWED_STATUSES = [
-  "pending",
-  "paid",
-  "shipped",
-  "failed",
-  "cancelled",
-] as const;
-
-function isAllowedStatus(value: string): boolean {
-  return ALLOWED_STATUSES.includes(
-    value as (typeof ALLOWED_STATUSES)[number]
-  );
-}
 
 export async function POST(req: Request) {
   try {
@@ -28,7 +15,6 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-
     const { orderId, status } = body as {
       orderId?: string;
       status?: string;
@@ -41,15 +27,16 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!isAllowedStatus(status)) {
+    if (!isOrderStatus(normalizeOrderStatus(status))) {
       return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     }
 
+    const normalizedStatus = normalizeOrderStatus(status);
     const supabase = getSupabaseAdminClient();
 
     const { data, error } = await supabase
       .from("orders")
-      .update({ status })
+      .update({ status: normalizedStatus })
       .eq("id", orderId)
       .select("id, status")
       .single();
@@ -62,7 +49,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, order: data });
   } catch (err) {
     console.error("Update status fatal error:", err);
-
     return NextResponse.json(
       {
         error: err instanceof Error ? err.message : "Server error",

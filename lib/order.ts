@@ -24,9 +24,16 @@ export type LocalOrder = {
   items: PendingCartItem[];
 };
 
-/**
- * 🔥 NUOVA SHAPE STABILE PER ORDINI (DB)
- */
+export const ORDER_STATUSES = [
+  "pending",
+  "paid",
+  "shipped",
+  "failed",
+  "cancelled",
+] as const;
+
+export type OrderStatus = (typeof ORDER_STATUSES)[number];
+
 export type OrderItem = {
   product_id: string;
   product_name: string;
@@ -61,9 +68,6 @@ function safeJsonParse<T>(value: string | null, fallback: T): T {
   }
 }
 
-/**
- * 🔒 NORMALIZZAZIONE STRONG DEL CARRELLO
- */
 function toPendingCartItems(value: unknown): PendingCartItem[] {
   if (!Array.isArray(value)) return [];
 
@@ -82,9 +86,6 @@ function toPendingCartItems(value: unknown): PendingCartItem[] {
   });
 }
 
-/**
- * 🔥 NORMALIZZAZIONE FORZATA PER STORAGE ORDINI LOCALI
- */
 function toLocalOrder(value: PendingOrder): LocalOrder {
   return {
     id:
@@ -95,10 +96,7 @@ function toLocalOrder(value: PendingOrder): LocalOrder {
       typeof value.savedAt === "number" && Number.isFinite(value.savedAt)
         ? value.savedAt
         : Date.now(),
-    status:
-      typeof value.status === "string" && value.status.length > 0
-        ? value.status
-        : "paid",
+    status: normalizeOrderStatus(value.status),
     subtotalEUR:
       typeof value.subtotalEUR === "number" &&
       Number.isFinite(value.subtotalEUR)
@@ -108,9 +106,6 @@ function toLocalOrder(value: PendingOrder): LocalOrder {
   };
 }
 
-/**
- * 🧠 NORMALIZZAZIONE ITEMS DB → UI
- */
 function toNumber(value: unknown, fallback = 0): number {
   if (typeof value === "number" && Number.isFinite(value)) return value;
 
@@ -127,7 +122,6 @@ function mapOrderItem(item: unknown): OrderItemRow | null {
 
   const row = item as Record<string, unknown>;
 
-  // 🔥 nuova shape stabile
   if (
     typeof row.product_name === "string" &&
     typeof row.quantity !== "undefined"
@@ -144,7 +138,6 @@ function mapOrderItem(item: unknown): OrderItemRow | null {
     };
   }
 
-  // 🧯 fallback legacy (compatibilità)
   const qty = toNumber(row.qty ?? row.quantity, 1);
   const price = toNumber(
     row.unitPriceEUR ?? row.unit_price_eur ?? row.price,
@@ -153,11 +146,9 @@ function mapOrderItem(item: unknown): OrderItemRow | null {
 
   return {
     productName: String(
-      row.name ?? row.productName ?? row.title ?? "Prodotto"
+      row.name ?? row.productName ?? row.product_name ?? row.title ?? "Prodotto"
     ),
-    variantName: String(
-      row.variant ?? row.variantName ?? "Default"
-    ),
+    variantName: String(row.variant ?? row.variantName ?? "Default"),
     qty,
     unitPriceEUR: price,
     lineTotalEUR: toNumber(
@@ -191,9 +182,40 @@ export function normalizeItemsJson(value: unknown): OrderItemRow[] {
   return [];
 }
 
-/**
- * STORAGE FUNCTIONS (invariati ma tipizzati meglio)
- */
+export function isOrderStatus(value: unknown): value is OrderStatus {
+  return (
+    typeof value === "string" &&
+    ORDER_STATUSES.includes(value as OrderStatus)
+  );
+}
+
+export function normalizeOrderStatus(value: unknown): OrderStatus {
+  if (typeof value !== "string") return "pending";
+
+  const normalized = value.trim().toLowerCase();
+
+  return isOrderStatus(normalized) ? normalized : "pending";
+}
+
+export function getOrderStatusLabel(value: unknown): string {
+  const status = normalizeOrderStatus(value);
+
+  switch (status) {
+    case "pending":
+      return "In attesa";
+    case "paid":
+      return "Pagato";
+    case "shipped":
+      return "Spedito";
+    case "failed":
+      return "Fallito";
+    case "cancelled":
+      return "Annullato";
+    default:
+      return "In attesa";
+  }
+}
+
 export function savePendingOrder(order: PendingOrder) {
   if (!isBrowser()) return;
   window.localStorage.setItem(PENDING_ORDER_KEY, JSON.stringify(order));
@@ -248,10 +270,6 @@ export function readLocalOrders(): LocalOrder[] {
     .map(toLocalOrder);
 }
 
-/**
- * 💰 IMPORTI — NORMALIZZAZIONE SICURA
- */
-
 export function centsToEUR(value: number | null | undefined): number | null {
   if (value == null) return null;
   if (!Number.isFinite(value)) return null;
@@ -283,9 +301,6 @@ export function formatEUR(
   }).format(value);
 }
 
-/**
- * 🔍 VALIDAZIONE (solo debug — non blocca)
- */
 export function validateOrderAmounts(
   items: OrderItemRow[],
   amountTotalCents: number | null | undefined
@@ -297,7 +312,6 @@ export function validateOrderAmounts(
   }, 0);
 
   const totalEUR = amountTotalCents / 100;
-
   const diff = Math.abs(sum - totalEUR);
 
   if (diff > 0.01) {

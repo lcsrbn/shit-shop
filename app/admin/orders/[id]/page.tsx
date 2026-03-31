@@ -3,7 +3,13 @@ import { notFound, redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { OrderStatusSelect } from "@/components/admin/OrderStatusSelect";
-import { normalizeItemsJson } from "@/lib/order";
+import {
+  formatCents,
+  formatEUR,
+  getOrderStatusLabel,
+  normalizeItemsJson,
+  validateOrderAmounts,
+} from "@/lib/order";
 
 const ADMIN_COOKIE = "shit_shop_admin_session";
 
@@ -37,27 +43,6 @@ type AdminOrderDetailPageProps = {
     id: string;
   }>;
 };
-
-function formatMoneyCents(value: number | null, currency: string | null = "EUR") {
-  if (value == null) return "—";
-
-  return new Intl.NumberFormat("it-IT", {
-    style: "currency",
-    currency: (currency ?? "EUR").toUpperCase(),
-  }).format(value / 100);
-}
-
-function formatMoneyNumber(
-  value: number | null,
-  currency: string | null = "EUR"
-) {
-  if (value == null || !Number.isFinite(value)) return "—";
-
-  return new Intl.NumberFormat("it-IT", {
-    style: "currency",
-    currency: (currency ?? "EUR").toUpperCase(),
-  }).format(value);
-}
 
 function formatDate(value: string | null) {
   if (!value) return "—";
@@ -98,6 +83,8 @@ export default async function AdminOrderDetailPage({
   const { id } = await params;
   const order = await getOrder(id);
   const items = normalizeItemsJson(order.items_json);
+
+  validateOrderAmounts(items, order.amount_total);
 
   return (
     <main
@@ -197,16 +184,14 @@ export default async function AdminOrderDetailPage({
           <h2 style={{ marginTop: 0 }}>Ordine</h2>
           <div style={{ display: "grid", gap: 12 }}>
             <div>Creato il: {formatDate(order.created_at)}</div>
-            <div>Stato attuale: {order.status ?? "—"}</div>
+            <div>Stato attuale: {getOrderStatusLabel(order.status)}</div>
 
             <div style={{ maxWidth: 240 }}>
               <OrderStatusSelect orderId={order.id} initialStatus={order.status} />
             </div>
 
-            <div>
-              Subtotale: {formatMoneyCents(order.amount_subtotal, order.currency)}
-            </div>
-            <div>Totale: {formatMoneyCents(order.amount_total, order.currency)}</div>
+            <div>Subtotale: {formatCents(order.amount_subtotal, order.currency)}</div>
+            <div>Totale: {formatCents(order.amount_total, order.currency)}</div>
           </div>
         </section>
 
@@ -264,12 +249,10 @@ export default async function AdminOrderDetailPage({
                     <div>Variante: {item.variantName}</div>
                     <div>Qty: {item.qty}</div>
                     <div>
-                      Prezzo unitario:{" "}
-                      {formatMoneyNumber(item.unitPriceEUR, order.currency)}
+                      Prezzo unitario: {formatEUR(item.unitPriceEUR, order.currency)}
                     </div>
                     <div>
-                      Totale riga:{" "}
-                      {formatMoneyNumber(item.lineTotalEUR, order.currency)}
+                      Totale riga: {formatEUR(item.lineTotalEUR, order.currency)}
                     </div>
                   </div>
                 </article>
