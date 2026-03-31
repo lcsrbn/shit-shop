@@ -17,6 +17,7 @@ export function proxy(req: NextRequest) {
     pathname === "/login" ||
     pathname === "/orders" ||
     pathname.startsWith("/orders/") ||
+    pathname === "/admin" ||
     pathname === "/admin/login" ||
     pathname.startsWith("/admin/orders") ||
     pathname.startsWith("/api/orders") ||
