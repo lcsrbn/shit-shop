@@ -1,5 +1,14 @@
+import type { CartItem } from "@/lib/cart";
+
+type LegacyPendingCartItem = {
+  id: string;
+  qty: number;
+};
+
+type PendingCartItem = LegacyPendingCartItem | CartItem;
+
 export type PendingOrder = {
-  items?: unknown[];
+  items?: PendingCartItem[];
   [key: string]: unknown;
 };
 
@@ -35,6 +44,7 @@ export function savePendingOrder(order: PendingOrder) {
 
 export function readPendingOrder(): PendingOrder | null {
   if (!isBrowser()) return null;
+
   return safeJsonParse<PendingOrder | null>(
     window.localStorage.getItem(PENDING_ORDER_KEY),
     null
@@ -61,6 +71,7 @@ export function saveLocalOrder(order: PendingOrder) {
 
 export function readLocalOrders(): PendingOrder[] {
   if (!isBrowser()) return [];
+
   return safeJsonParse<PendingOrder[]>(
     window.localStorage.getItem(LOCAL_ORDERS_KEY),
     []
