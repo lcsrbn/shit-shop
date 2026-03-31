@@ -1,4 +1,7 @@
-export type PendingOrder = Record<string, unknown>;
+export type PendingOrder = {
+  items?: unknown[];
+  [key: string]: unknown;
+};
 
 export type OrderItemRow = {
   productName: string;
