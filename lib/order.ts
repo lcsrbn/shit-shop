@@ -5,11 +5,23 @@ type LegacyPendingCartItem = {
   qty: number;
 };
 
-type PendingCartItem = LegacyPendingCartItem | CartItem;
+export type PendingCartItem = LegacyPendingCartItem | CartItem;
 
 export type PendingOrder = {
+  id?: string;
+  savedAt?: number;
+  status?: string;
+  subtotalEUR?: number;
   items?: PendingCartItem[];
   [key: string]: unknown;
+};
+
+export type LocalOrder = {
+  id: string;
+  savedAt: number;
+  status: string;
+  subtotalEUR: number;
+  items: PendingCartItem[];
 };
 
 export type OrderItemRow = {
@@ -37,6 +49,47 @@ function safeJsonParse<T>(value: string | null, fallback: T): T {
   }
 }
 
+function toPendingCartItems(value: unknown): PendingCartItem[] {
+  if (!Array.isArray(value)) return [];
+
+  return value.filter((item): item is PendingCartItem => {
+    if (!item || typeof item !== "object") return false;
+
+    const row = item as Record<string, unknown>;
+
+    if (typeof row.qty !== "number") return false;
+
+    if (typeof row.id === "string") {
+      return true;
+    }
+
+    return (
+      typeof row.productId === "string" && typeof row.variantId === "string"
+    );
+  });
+}
+
+function toLocalOrder(value: PendingOrder): LocalOrder {
+  return {
+    id: typeof value.id === "string" && value.id.length > 0
+      ? value.id
+      : `local-${Date.now()}`,
+    savedAt:
+      typeof value.savedAt === "number" && Number.isFinite(value.savedAt)
+        ? value.savedAt
+        : Date.now(),
+    status:
+      typeof value.status === "string" && value.status.length > 0
+        ? value.status
+        : "paid",
+    subtotalEUR:
+      typeof value.subtotalEUR === "number" && Number.isFinite(value.subtotalEUR)
+        ? value.subtotalEUR
+        : 0,
+    items: toPendingCartItems(value.items),
+  };
+}
+
 export function savePendingOrder(order: PendingOrder) {
   if (!isBrowser()) return;
   window.localStorage.setItem(PENDING_ORDER_KEY, JSON.stringify(order));
@@ -45,10 +98,19 @@ export function savePendingOrder(order: PendingOrder) {
 export function readPendingOrder(): PendingOrder | null {
   if (!isBrowser()) return null;
 
-  return safeJsonParse<PendingOrder | null>(
+  const raw = safeJsonParse<PendingOrder | null>(
     window.localStorage.getItem(PENDING_ORDER_KEY),
     null
   );
+
+  if (!raw || typeof raw !== "object") {
+    return null;
+  }
+
+  return {
+    ...raw,
+    items: toPendingCartItems(raw.items),
+  };
 }
 
 export function clearPendingOrder() {
@@ -59,23 +121,29 @@ export function clearPendingOrder() {
 export function saveLocalOrder(order: PendingOrder) {
   if (!isBrowser()) return;
 
-  const orders = safeJsonParse<PendingOrder[]>(
+  const orders = safeJsonParse<LocalOrder[]>(
     window.localStorage.getItem(LOCAL_ORDERS_KEY),
     []
   );
 
-  orders.unshift(order);
+  orders.unshift(toLocalOrder(order));
 
   window.localStorage.setItem(LOCAL_ORDERS_KEY, JSON.stringify(orders));
 }
 
-export function readLocalOrders(): PendingOrder[] {
+export function readLocalOrders(): LocalOrder[] {
   if (!isBrowser()) return [];
 
-  return safeJsonParse<PendingOrder[]>(
+  const raw = safeJsonParse<unknown[]>(
     window.localStorage.getItem(LOCAL_ORDERS_KEY),
     []
   );
+
+  if (!Array.isArray(raw)) return [];
+
+  return raw
+    .filter((item): item is PendingOrder => !!item && typeof item === "object")
+    .map(toLocalOrder);
 }
 
 function toNumber(value: unknown, fallback = 0): number {
