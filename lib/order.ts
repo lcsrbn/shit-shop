@@ -1,73 +1,88 @@
-export type PendingOrderItem = {
-  id: string; // productId
-  variantId: string;
+export type OrderItemRow = {
+  productName: string;
+  variantName: string;
   qty: number;
+  unitPriceEUR: number;
+  lineTotalEUR: number;
 };
 
-export type PendingOrder = {
-  id: string;
-  createdAt: number;
-  items: PendingOrderItem[];
-  subtotalEUR: number;
-};
-
-export type LocalOrder = PendingOrder & {
-  savedAt: number;
-  status: "paid";
-};
-
-const PENDING_KEY = "floating_shop_pending_order_v1";
-const ORDERS_KEY = "floating_shop_orders_v1";
-
-export function savePendingOrder(order: PendingOrder) {
-  try {
-    localStorage.setItem(PENDING_KEY, JSON.stringify(order));
-  } catch {}
-}
-
-export function readPendingOrder(): PendingOrder | null {
-  try {
-    const raw = localStorage.getItem(PENDING_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as PendingOrder;
-  } catch {
-    return null;
+function toNumber(value: unknown, fallback = 0): number {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
   }
-}
 
-export function clearPendingOrder() {
-  try {
-    localStorage.removeItem(PENDING_KEY);
-  } catch {}
-}
+  if (typeof value === "string") {
+    const normalized = value.replace(",", ".").trim();
+    const parsed = Number(normalized);
 
-export function readLocalOrders(): LocalOrder[] {
-  try {
-    const raw = localStorage.getItem(ORDERS_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed as LocalOrder[];
-  } catch {
-    return [];
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
   }
+
+  return fallback;
 }
 
-export function saveLocalOrder(order: PendingOrder) {
-  try {
-    const existing = readLocalOrders();
+export function normalizeItemsJson(value: unknown): OrderItemRow[] {
+  const mapItem = (item: unknown): OrderItemRow | null => {
+    if (!item || typeof item !== "object") {
+      return null;
+    }
 
-    if (existing.some((x) => x.id === order.id)) return;
+    const row = item as Record<string, unknown>;
+    const qty = toNumber(row.qty ?? row.quantity, 1);
+    const unitPriceEUR = toNumber(
+      row.unitPriceEUR ?? row.unit_price_eur ?? row.price,
+      0
+    );
 
-    const next: LocalOrder[] = [
-      {
-        ...order,
-        savedAt: Date.now(),
-        status: "paid",
-      },
-      ...existing,
-    ];
+    return {
+      productName: String(
+        row.name ?? row.productName ?? row.product_name ?? row.title ?? "Prodotto"
+      ),
+      variantName: String(
+        row.variant ?? row.variantName ?? row.variant_name ?? "Default"
+      ),
+      qty,
+      unitPriceEUR,
+      lineTotalEUR: toNumber(
+        row.lineTotalEUR ?? row.line_total_eur,
+        qty * unitPriceEUR
+      ),
+    };
+  };
 
-    localStorage.setItem(ORDERS_KEY, JSON.stringify(next));
-  } catch {}
+  if (Array.isArray(value)) {
+    return value
+      .map(mapItem)
+      .filter((item): item is OrderItemRow => item !== null);
+  }
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map(mapItem)
+          .filter((item): item is OrderItemRow => item !== null);
+      }
+
+      if (parsed && typeof parsed === "object") {
+        const single = mapItem(parsed);
+        return single ? [single] : [];
+      }
+
+      return [];
+    } catch {
+      return [];
+    }
+  }
+
+  if (value && typeof value === "object") {
+    const single = mapItem(value);
+    return single ? [single] : [];
+  }
+
+  return [];
 }
