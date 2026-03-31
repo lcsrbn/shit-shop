@@ -247,3 +247,64 @@ export function readLocalOrders(): LocalOrder[] {
     .filter((item): item is PendingOrder => !!item && typeof item === "object")
     .map(toLocalOrder);
 }
+
+/**
+ * 💰 IMPORTI — NORMALIZZAZIONE SICURA
+ */
+
+export function centsToEUR(value: number | null | undefined): number | null {
+  if (value == null) return null;
+  if (!Number.isFinite(value)) return null;
+
+  return value / 100;
+}
+
+export function formatCents(
+  value: number | null | undefined,
+  currency: string | null = "EUR"
+): string {
+  if (value == null || !Number.isFinite(value)) return "—";
+
+  return new Intl.NumberFormat("it-IT", {
+    style: "currency",
+    currency: (currency ?? "EUR").toUpperCase(),
+  }).format(value / 100);
+}
+
+export function formatEUR(
+  value: number | null | undefined,
+  currency: string | null = "EUR"
+): string {
+  if (value == null || !Number.isFinite(value)) return "—";
+
+  return new Intl.NumberFormat("it-IT", {
+    style: "currency",
+    currency: (currency ?? "EUR").toUpperCase(),
+  }).format(value);
+}
+
+/**
+ * 🔍 VALIDAZIONE (solo debug — non blocca)
+ */
+export function validateOrderAmounts(
+  items: OrderItemRow[],
+  amountTotalCents: number | null | undefined
+) {
+  if (!amountTotalCents || items.length === 0) return;
+
+  const sum = items.reduce((acc, item) => {
+    return acc + (item.lineTotalEUR ?? 0);
+  }, 0);
+
+  const totalEUR = amountTotalCents / 100;
+
+  const diff = Math.abs(sum - totalEUR);
+
+  if (diff > 0.01) {
+    console.warn("⚠️ Order amount mismatch", {
+      itemsSum: sum,
+      totalEUR,
+      diff,
+    });
+  }
+}

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getSupabaseServerAuthClient } from "@/lib/supabase-server-auth";
-import { normalizeItemsJson } from "@/lib/order";
+import { normalizeItemsJson, validateOrderAmounts } from "@/lib/order";
 
 type OrderRow = {
   id: string;
@@ -94,6 +94,8 @@ export default async function CustomerOrderDetailPage({
   const { id } = await params;
   const order = await getOrderForCurrentUser(id);
   const items = normalizeItemsJson(order.items_json);
+
+  validateOrderAmounts(items, order.amount_total);
 
   return (
     <main
