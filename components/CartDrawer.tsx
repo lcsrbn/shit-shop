@@ -57,7 +57,7 @@ export default function CartDrawer() {
             transform: pulse ? "scale(1.08)" : "scale(1)",
             transition: "transform 180ms ease",
           }}
-          title="Apri carrello"
+          title="Open cart"
         >
           🛒 {cart.count}
         </button>
@@ -97,7 +97,7 @@ export default function CartDrawer() {
                 gap: 12,
               }}
             >
-              <div style={{ fontSize: 20, fontWeight: 950 }}>Carrello</div>
+              <div style={{ fontSize: 20, fontWeight: 950 }}>Cart</div>
               <button
                 onClick={() => setOpen(false)}
                 style={{
@@ -108,13 +108,13 @@ export default function CartDrawer() {
                   cursor: "pointer",
                 }}
               >
-                Chiudi
+                Close
               </button>
             </div>
 
             <div style={{ flex: 1, overflow: "auto", paddingRight: 4 }}>
               {cart.detailedItems.length === 0 ? (
-                <div style={{ opacity: 0.7 }}>Il carrello è vuoto.</div>
+                <div style={{ opacity: 0.7 }}>Your cart is empty.</div>
               ) : (
                 cart.detailedItems.map(({ key, product, variant, qty, lineEUR }) => (
                   <div
@@ -148,10 +148,10 @@ export default function CartDrawer() {
                     <div>
                       <div style={{ fontWeight: 900 }}>{product.name}</div>
                       <div style={{ fontSize: 13, opacity: 0.7 }}>
-                        Variante: {variant.name}
+                        Variant: {variant.name}
                       </div>
                       <div style={{ fontSize: 13, opacity: 0.7 }}>
-                        €{variant.priceEUR.toFixed(2)} cad.
+                        €{variant.priceEUR.toFixed(2)} ea.
                       </div>
 
                       <div
@@ -207,7 +207,7 @@ export default function CartDrawer() {
                             cursor: "pointer",
                           }}
                         >
-                          Rimuovi
+                          Remove
                         </button>
                       </div>
                     </div>
@@ -220,7 +220,7 @@ export default function CartDrawer() {
 
             <div style={{ borderTop: "1px solid rgba(0,0,0,.10)", paddingTop: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 900 }}>
-                <div>Subtotale</div>
+                <div>Subtotal</div>
                 <div>€{cart.subtotalEUR.toFixed(2)}</div>
               </div>
 
@@ -239,7 +239,7 @@ export default function CartDrawer() {
                     fontWeight: 800,
                   }}
                 >
-                  Svuota
+                  Clear
                 </button>
 
                 <button

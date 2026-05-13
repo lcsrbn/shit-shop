@@ -20,12 +20,12 @@ export default function CancelClient() {
   return (
     <div style={{ marginTop: 14 }}>
       <div style={{ fontWeight: 950, marginBottom: 8 }}>
-        {restored ? "Carrello ripristinato" : "Nessun carrello da ripristinare"}
+        {restored ? "Cart restored" : "No cart to restore"}
       </div>
       <div style={{ fontSize: 13, opacity: 0.72 }}>
         {restored
-          ? "Abbiamo rimesso i prodotti nel carrello così puoi riprovare."
-          : "Puoi tornare alla home e ricominciare."}
+          ? "We put the items back in your cart so you can try again."
+          : "You can go back to the home page and start over."}
       </div>
     </div>
   );

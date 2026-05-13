@@ -34,7 +34,7 @@ export default function MaintenancePage() {
               margin: 0,
             }}
           >
-            Sito in costruzione
+            Site under construction
           </h1>
   
           <p
@@ -45,7 +45,7 @@ export default function MaintenancePage() {
               opacity: 0.72,
             }}
           >
-            Stiamo preparando il negozio. Torna presto.
+            We are getting the store ready. Check back soon.
           </p>
         </div>
       </main>

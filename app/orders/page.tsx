@@ -49,7 +49,7 @@ async function getCurrentUserAndOrders(): Promise<{
 function formatMoney(cents: number | null, currency: string | null) {
   if (cents == null) return "—";
 
-  return new Intl.NumberFormat("it-IT", {
+  return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: (currency ?? "EUR").toUpperCase(),
   }).format(cents / 100);
@@ -57,7 +57,7 @@ function formatMoney(cents: number | null, currency: string | null) {
 
 function formatDate(value: string) {
   try {
-    return new Date(value).toLocaleString("it-IT");
+    return new Date(value).toLocaleString("en-US");
   } catch {
     return value;
   }
@@ -88,9 +88,9 @@ export default async function OrdersPage() {
           <div style={{ fontSize: 14, opacity: 0.7, marginBottom: 8 }}>
             shit-shop
           </div>
-          <h1 style={{ margin: 0, fontSize: 32 }}>I tuoi ordini</h1>
+          <h1 style={{ margin: 0, fontSize: 32 }}>Your orders</h1>
           <p style={{ marginTop: 10, opacity: 0.8 }}>
-            Account: {userEmail ?? "utente loggato"}
+            Account: {userEmail ?? "signed-in user"}
           </p>
         </div>
 
@@ -118,10 +118,10 @@ export default async function OrdersPage() {
             padding: 20,
           }}
         >
-          <p style={{ marginTop: 0 }}>Nessun ordine associato a questo account.</p>
+          <p style={{ marginTop: 0 }}>No orders for this account yet.</p>
 
           <Link href="/" style={{ textDecoration: "underline" }}>
-            Torna allo shop
+            Back to shop
           </Link>
         </section>
       ) : (
@@ -146,7 +146,7 @@ export default async function OrdersPage() {
               >
                 <div>
                   <div style={{ fontSize: 13, opacity: 0.65, marginBottom: 6 }}>
-                    Ordine
+                    Order
                   </div>
                   <div style={{ fontWeight: 700, fontSize: 18 }}>
                     {order.order_id ?? order.id}
@@ -155,7 +155,7 @@ export default async function OrdersPage() {
 
                 <div style={{ textAlign: "right" }}>
                   <div style={{ fontSize: 13, opacity: 0.65, marginBottom: 6 }}>
-                    Totale
+                    Total
                   </div>
                   <div style={{ fontWeight: 700, fontSize: 18 }}>
                     {formatMoney(order.amount_total, order.currency)}
@@ -171,8 +171,8 @@ export default async function OrdersPage() {
                   opacity: 0.85,
                 }}
               >
-                <div>Creato il: {formatDate(order.created_at)}</div>
-                <div>Stato: {order.status ?? "—"}</div>
+                <div>Created: {formatDate(order.created_at)}</div>
+                <div>Status: {order.status ?? "—"}</div>
               </div>
 
               <Link
@@ -186,7 +186,7 @@ export default async function OrdersPage() {
                   color: "inherit",
                 }}
               >
-                Apri dettaglio
+                View details
               </Link>
             </article>
           ))}

@@ -25,7 +25,7 @@ export async function POST(req: Request) {
   }
 
   if (!adminEmails.includes(email) || password !== adminPassword) {
-    return new NextResponse("Credenziali admin non valide", {
+    return new NextResponse("Invalid admin credentials", {
       status: 401,
     });
   }

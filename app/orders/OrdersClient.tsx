@@ -7,7 +7,7 @@ import { products } from "@/lib/products";
 
 function formatDate(ts: number) {
   try {
-    return new Date(ts).toLocaleString("it-IT");
+    return new Date(ts).toLocaleString("en-US");
   } catch {
     return "";
   }
@@ -30,7 +30,7 @@ export default function OrdersClient() {
           background: "rgba(255,255,255,.92)",
         }}
       >
-        <p style={{ margin: 0, opacity: 0.8 }}>Nessun ordine salvato in questo browser.</p>
+        <p style={{ margin: 0, opacity: 0.8 }}>No orders saved in this browser.</p>
 
         <div style={{ marginTop: 16 }}>
           <Link
@@ -46,7 +46,7 @@ export default function OrdersClient() {
               fontWeight: 800,
             }}
           >
-            Torna allo shop
+            Back to shop
           </Link>
         </div>
       </div>
@@ -75,12 +75,12 @@ export default function OrdersClient() {
             }}
           >
             <div>
-              <div style={{ fontSize: 13, opacity: 0.65 }}>Ordine</div>
+              <div style={{ fontSize: 13, opacity: 0.65 }}>Order</div>
               <div style={{ fontWeight: 950 }}>{order.id}</div>
             </div>
 
             <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 13, opacity: 0.65 }}>Salvato il</div>
+              <div style={{ fontSize: 13, opacity: 0.65 }}>Saved</div>
               <div style={{ fontWeight: 900 }}>{formatDate(order.savedAt)}</div>
             </div>
           </div>
@@ -122,7 +122,7 @@ export default function OrdersClient() {
                   <div>
                     <div style={{ fontWeight: 900 }}>{product.name}</div>
                     <div style={{ fontSize: 13, opacity: 0.7 }}>
-                      Quantità: {item.qty} · €{product.priceEUR.toFixed(2)} cad.
+                      Qty: {item.qty} · €{product.priceEUR.toFixed(2)} ea.
                     </div>
                   </div>
 
@@ -157,11 +157,11 @@ export default function OrdersClient() {
                 fontWeight: 800,
               }}
             >
-              Stato: {order.status}
+              Status: {order.status}
             </div>
 
             <div style={{ fontWeight: 950, fontSize: 18 }}>
-              Totale: €{order.subtotalEUR.toFixed(2)}
+              Total: €{order.subtotalEUR.toFixed(2)}
             </div>
           </div>
         </section>
@@ -181,7 +181,7 @@ export default function OrdersClient() {
             fontWeight: 800,
           }}
         >
-          Torna allo shop
+          Back to shop
         </Link>
       </div>
     </div>

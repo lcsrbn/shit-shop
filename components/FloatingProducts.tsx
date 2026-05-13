@@ -381,7 +381,7 @@ export default function FloatingProducts() {
                         closeOverlay();
                       }}
                     >
-                      Chiudi
+                      Close
                     </button>
                   </div>
 
@@ -493,7 +493,7 @@ export default function FloatingProducts() {
                     </div>
 
                     <div style={{ marginTop: 8, fontSize: 13, opacity: 0.7 }}>
-                      Stock disponibile: {selectedVariant.stock}
+                      Stock available: {selectedVariant.stock}
                     </div>
 
                     <div className="desc">{overlay.product.description ?? ""}</div>
@@ -504,7 +504,7 @@ export default function FloatingProducts() {
                           e.stopPropagation();
 
                           if (selectedVariant.stock <= 0) {
-                            alert("Variante esaurita");
+                            alert("This variant is out of stock");
                             return;
                           }
 
@@ -528,12 +528,12 @@ export default function FloatingProducts() {
                           fontWeight: 950,
                         }}
                       >
-                        {selectedVariant.stock <= 0 ? "Esaurito" : "Aggiungi al carrello"}
+                        {selectedVariant.stock <= 0 ? "Out of stock" : "Add to cart"}
                       </button>
                     </div>
 
                     <div style={{ marginTop: 8, fontSize: 12, opacity: 0.65 }}>
-                      Checkout dal carrello.
+                      Checkout from the cart.
                     </div>
                   </div>
                 </div>
@@ -547,7 +547,7 @@ export default function FloatingProducts() {
                         closeOverlay();
                       }}
                     >
-                      Chiudi
+                      Close
                     </button>
                   </div>
 

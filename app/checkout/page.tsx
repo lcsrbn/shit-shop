@@ -29,7 +29,7 @@ export default async function CheckoutPage() {
         </div>
 
         <a href="/" style={{ opacity: 0.7 }}>
-          ← Continua a comprare
+          ← Continue shopping
         </a>
       </header>
 

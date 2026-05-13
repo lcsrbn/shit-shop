@@ -69,11 +69,11 @@ export default function CheckoutClient() {
   }
 
   if (!cart.ready) {
-    return <div style={{ padding: "40px 0", opacity: 0.6 }}>Caricamento checkout…</div>;
+    return <div style={{ padding: "40px 0", opacity: 0.6 }}>Loading checkout…</div>;
   }
 
   if (cart.count === 0) {
-    return <div style={{ padding: "40px 0", opacity: 0.6 }}>Carrello vuoto — reindirizzamento…</div>;
+    return <div style={{ padding: "40px 0", opacity: 0.6 }}>Empty cart — redirecting…</div>;
   }
 
   return (
@@ -93,7 +93,7 @@ export default function CheckoutClient() {
           background: "rgba(255,255,255,.90)",
         }}
       >
-        <div style={{ fontWeight: 950, fontSize: 18, marginBottom: 10 }}>Prodotti</div>
+        <div style={{ fontWeight: 950, fontSize: 18, marginBottom: 10 }}>Items</div>
 
         {rows.map((row) => (
           <div
@@ -126,9 +126,9 @@ export default function CheckoutClient() {
 
             <div>
               <div style={{ fontWeight: 950 }}>{row.product.name}</div>
-              <div style={{ fontSize: 13, opacity: 0.7 }}>Variante: {row.variant.name}</div>
+              <div style={{ fontSize: 13, opacity: 0.7 }}>Variant: {row.variant.name}</div>
               <div style={{ fontSize: 13, opacity: 0.7 }}>
-                €{row.variant.priceEUR.toFixed(2)} cad.
+                €{row.variant.priceEUR.toFixed(2)} ea.
               </div>
 
               <div style={{ display: "flex", gap: 8, marginTop: 10, alignItems: "center" }}>
@@ -185,7 +185,7 @@ export default function CheckoutClient() {
                     cursor: "pointer",
                   }}
                 >
-                  Rimuovi
+                  Remove
                 </button>
               </div>
             </div>
@@ -206,26 +206,26 @@ export default function CheckoutClient() {
           top: 18,
         }}
       >
-        <div style={{ fontWeight: 950, fontSize: 18, marginBottom: 10 }}>Riepilogo</div>
+        <div style={{ fontWeight: 950, fontSize: 18, marginBottom: 10 }}>Summary</div>
 
         <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0" }}>
-          <div style={{ opacity: 0.75 }}>Subtotale</div>
+          <div style={{ opacity: 0.75 }}>Subtotal</div>
           <div style={{ fontWeight: 950 }}>€{cart.subtotalEUR.toFixed(2)}</div>
         </div>
 
         <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0" }}>
-          <div style={{ opacity: 0.75 }}>Spedizione</div>
+          <div style={{ opacity: 0.75 }}>Shipping</div>
           <div style={{ fontWeight: 950 }}>—</div>
         </div>
 
         <div style={{ borderTop: "1px solid rgba(0,0,0,.10)", marginTop: 8, paddingTop: 10 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-            <div style={{ fontWeight: 950, fontSize: 16 }}>Totale</div>
+            <div style={{ fontWeight: 950, fontSize: 16 }}>Total</div>
             <div style={{ fontWeight: 950, fontSize: 18 }}>€{cart.subtotalEUR.toFixed(2)}</div>
           </div>
 
           <div style={{ fontSize: 12, opacity: 0.65, marginTop: 6 }}>
-            Tasse e spedizione verranno gestite più avanti.
+            Taxes and shipping will be finalized at checkout.
           </div>
         </div>
 
@@ -242,7 +242,7 @@ export default function CheckoutClient() {
               fontWeight: 800,
             }}
           >
-            Svuota
+            Clear
           </button>
 
           <button
@@ -260,7 +260,7 @@ export default function CheckoutClient() {
               opacity: disabled ? 0.75 : 1,
             }}
           >
-            {loading ? "Apro Stripe…" : "Vai al pagamento"}
+            {loading ? "Opening Stripe…" : "Continue to payment"}
           </button>
         </div>
       </aside>

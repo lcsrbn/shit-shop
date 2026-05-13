@@ -15,11 +15,11 @@ export default async function SuccessPage() {
           letterSpacing: "-0.03em",
         }}
       >
-        Pagamento completato ✅
+        Payment complete ✅
       </h1>
 
       <p style={{ marginTop: 10, opacity: 0.75 }}>
-        Grazie! Il tuo ordine è stato registrato.
+        Thanks! Your order was recorded.
       </p>
 
       <div style={{ marginTop: 18 }}>

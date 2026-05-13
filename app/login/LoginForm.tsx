@@ -26,7 +26,7 @@ export default function LoginForm() {
 
         if (error) throw error;
 
-        setMessage("Account creato. Controlla la tua email se è richiesta conferma.");
+        setMessage("Account created. Check your email if confirmation is required.");
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
@@ -38,7 +38,7 @@ export default function LoginForm() {
         window.location.href = "/orders";
       }
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Errore sconosciuto";
+      const msg = error instanceof Error ? error.message : "Unknown error";
       setMessage(msg);
     } finally {
       setLoading(false);
@@ -93,7 +93,7 @@ export default function LoginForm() {
             cursor: "pointer",
           }}
         >
-          {loading ? "Attendi..." : mode === "login" ? "Accedi" : "Registrati"}
+          {loading ? "Please wait..." : mode === "login" ? "Sign in" : "Sign up"}
         </button>
 
         <button
@@ -108,7 +108,7 @@ export default function LoginForm() {
             cursor: "pointer",
           }}
         >
-          {mode === "login" ? "Crea account" : "Ho già un account"}
+          {mode === "login" ? "Create account" : "I already have an account"}
         </button>
       </div>
 

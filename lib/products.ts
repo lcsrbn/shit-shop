@@ -7,7 +7,7 @@ const rawProducts: ProductBase[] = [
     id: "poster-chaos",
     slug: "poster-chaos",
     name: "Chaos Poster",
-    description: "Poster sperimentale per interni.",
+    description: "Experimental poster for interior spaces.",
     coverImage: "/products/poster-chaos/front.jpg",
     galleryImages: [
       "/products/poster-chaos/front.jpg",
@@ -44,7 +44,7 @@ const rawProducts: ProductBase[] = [
     id: "poster-noise",
     slug: "poster-noise",
     name: "Noise Poster",
-    description: "Poster grafico ad alto contrasto.",
+    description: "High-contrast graphic poster.",
     coverImage: "/products/poster-noise/front.jpg",
     galleryImages: [
       "/products/poster-noise/front.jpg",
@@ -81,7 +81,7 @@ const rawProducts: ProductBase[] = [
     id: "poster-fragment",
     slug: "poster-fragment",
     name: "Fragment Poster",
-    description: "Poster visivo con composizione astratta.",
+    description: "Visual poster with an abstract composition.",
     coverImage: "/products/poster-fragment/front.jpg",
     galleryImages: [
       "/products/poster-fragment/front.jpg",

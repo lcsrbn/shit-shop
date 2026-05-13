@@ -50,7 +50,7 @@ export function OrderStatusSelect({
 
         if (!res.ok) {
           setStatus(previousStatus);
-          alert(payload?.error ?? `Errore aggiornamento stato (${res.status})`);
+          alert(payload?.error ?? `Failed to update status (${res.status})`);
           return;
         }
 
@@ -58,7 +58,7 @@ export function OrderStatusSelect({
       } catch (err) {
         console.error("UPDATE_STATUS_FETCH_ERROR", err);
         setStatus(previousStatus);
-        alert("Errore aggiornamento stato");
+        alert("Failed to update status");
       }
     });
   }

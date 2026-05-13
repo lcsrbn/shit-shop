@@ -202,17 +202,17 @@ export function getOrderStatusLabel(value: unknown): string {
 
   switch (status) {
     case "pending":
-      return "In attesa";
+      return "Pending";
     case "paid":
-      return "Pagato";
+      return "Paid";
     case "shipped":
-      return "Spedito";
+      return "Shipped";
     case "failed":
-      return "Fallito";
+      return "Failed";
     case "cancelled":
-      return "Annullato";
+      return "Cancelled";
     default:
-      return "In attesa";
+      return "Pending";
   }
 }
 
@@ -283,7 +283,7 @@ export function formatCents(
 ): string {
   if (value == null || !Number.isFinite(value)) return "—";
 
-  return new Intl.NumberFormat("it-IT", {
+  return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: (currency ?? "EUR").toUpperCase(),
   }).format(value / 100);
@@ -295,7 +295,7 @@ export function formatEUR(
 ): string {
   if (value == null || !Number.isFinite(value)) return "—";
 
-  return new Intl.NumberFormat("it-IT", {
+  return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: (currency ?? "EUR").toUpperCase(),
   }).format(value);

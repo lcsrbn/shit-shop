@@ -31,7 +31,7 @@ function formatMoneyCents(
 ) {
   if (value == null) return "—";
 
-  return new Intl.NumberFormat("it-IT", {
+  return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: (currency ?? "EUR").toUpperCase(),
   }).format(value / 100);
@@ -41,7 +41,7 @@ function formatDate(value: string | null) {
   if (!value) return "—";
 
   try {
-    return new Date(value).toLocaleString("it-IT");
+    return new Date(value).toLocaleString("en-US");
   } catch {
     return value;
   }
@@ -143,7 +143,7 @@ export default async function AdminOrdersPage({
           </h1>
 
           <p style={{ marginTop: 10, opacity: 0.75 }}>
-            Loggato come: {adminLabel}
+            Signed in as: {adminLabel}
           </p>
 
           <p style={{ marginTop: 6, opacity: 0.75 }}>
@@ -165,7 +165,7 @@ export default async function AdminOrdersPage({
                 cursor: "pointer",
               }}
             >
-              {maintenanceMode ? "Disattiva maintenance" : "Attiva maintenance"}
+              {maintenanceMode ? "Turn maintenance off" : "Turn maintenance on"}
             </button>
           </form>
 
@@ -202,7 +202,7 @@ export default async function AdminOrdersPage({
           type="text"
           name="q"
           defaultValue={resolvedSearchParams.q ?? ""}
-          placeholder="Cerca email, nome, order id..."
+          placeholder="Search email, name, order id..."
           style={{
             flex: "1 1 280px",
             minWidth: 240,
@@ -223,7 +223,7 @@ export default async function AdminOrdersPage({
             background: "#fff",
           }}
         >
-          <option value="all">Tutti gli stati</option>
+          <option value="all">All statuses</option>
           <option value="paid">Paid</option>
           <option value="pending">Pending</option>
           <option value="failed">Failed</option>
@@ -243,12 +243,12 @@ export default async function AdminOrdersPage({
             cursor: "pointer",
           }}
         >
-          Filtra
+          Apply filters
         </button>
       </form>
 
       <div style={{ marginTop: 12, opacity: 0.75, fontSize: 14 }}>
-        Ordini trovati: <b>{filteredOrders.length}</b>
+        Orders found: <b>{filteredOrders.length}</b>
       </div>
 
       <div style={{ marginTop: 22, display: "grid", gap: 12 }}>
@@ -262,7 +262,7 @@ export default async function AdminOrdersPage({
             }}
           >
             <p style={{ margin: 0, opacity: 0.8 }}>
-              Nessun ordine trovato con i filtri correnti.
+              No orders match the current filters.
             </p>
           </section>
         ) : (
@@ -286,7 +286,7 @@ export default async function AdminOrdersPage({
                 }}
               >
                 <div>
-                  <div style={{ fontSize: 13, opacity: 0.65 }}>Ordine</div>
+                  <div style={{ fontSize: 13, opacity: 0.65 }}>Order</div>
                   <div style={{ fontWeight: 950, fontSize: 18 }}>
                     {order.order_id ?? order.id}
                   </div>
@@ -305,14 +305,14 @@ export default async function AdminOrdersPage({
                 </div>
 
                 <div>
-                  <div style={{ fontSize: 13, opacity: 0.65 }}>Creato il</div>
+                  <div style={{ fontSize: 13, opacity: 0.65 }}>Created</div>
                   <div style={{ fontWeight: 900 }}>
                     {formatDate(order.created_at)}
                   </div>
                 </div>
 
                 <div>
-                  <div style={{ fontSize: 13, opacity: 0.65 }}>Stato</div>
+                  <div style={{ fontSize: 13, opacity: 0.65 }}>Status</div>
                   <div style={{ marginBottom: 8 }}>
                     <b>{order.status ?? "—"}</b>
                   </div>
@@ -323,7 +323,7 @@ export default async function AdminOrdersPage({
                 </div>
 
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 13, opacity: 0.65 }}>Totale</div>
+                  <div style={{ fontSize: 13, opacity: 0.65 }}>Total</div>
                   <div style={{ fontWeight: 900, fontSize: 18 }}>
                     {formatMoneyCents(order.amount_total, order.currency)}
                   </div>
@@ -342,7 +342,7 @@ export default async function AdminOrdersPage({
                         textDecoration: "none",
                       }}
                     >
-                      Apri dettaglio
+                      View details
                     </Link>
                   </div>
                 </div>

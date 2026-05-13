@@ -15,7 +15,7 @@ export default function AdminLoginPage() {
         </h1>
   
         <p style={{ marginTop: 10, opacity: 0.75 }}>
-          Accesso riservato all’amministrazione.
+          Admin access only.
         </p>
   
         <form
@@ -71,7 +71,7 @@ export default function AdminLoginPage() {
               cursor: "pointer",
             }}
           >
-            Entra
+            Sign in
           </button>
         </form>
       </main>

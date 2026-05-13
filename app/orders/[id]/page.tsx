@@ -42,7 +42,7 @@ function formatDate(value: string | null) {
   if (!value) return "—";
 
   try {
-    return new Date(value).toLocaleString("it-IT");
+    return new Date(value).toLocaleString("en-US");
   } catch {
     return value;
   }
@@ -94,9 +94,9 @@ export default async function CustomerOrderDetailPage({
         <div style={{ fontSize: 14, opacity: 0.7, marginBottom: 8 }}>
           shit-shop
         </div>
-        <h1 style={{ margin: 0, fontSize: 32 }}>Dettaglio ordine</h1>
+        <h1 style={{ margin: 0, fontSize: 32 }}>Order details</h1>
         <p style={{ marginTop: 10, opacity: 0.8 }}>
-          Ordine: {order.order_id ?? order.id}
+          Order: {order.order_id ?? order.id}
         </p>
       </div>
 
@@ -112,7 +112,7 @@ export default async function CustomerOrderDetailPage({
             color: "inherit",
           }}
         >
-          ← Torna ai tuoi ordini
+          ← Back to your orders
         </Link>
       </div>
 
@@ -124,12 +124,12 @@ export default async function CustomerOrderDetailPage({
             padding: 20,
           }}
         >
-          <h2 style={{ marginTop: 0 }}>Ordine</h2>
+          <h2 style={{ marginTop: 0 }}>Order</h2>
           <div style={{ display: "grid", gap: 10 }}>
-            <div>Creato il: {formatDate(order.created_at)}</div>
-            <div>Stato attuale: {getOrderStatusLabel(order.status)}</div>
-            <div>Subtotale: {formatCents(order.amount_subtotal, order.currency)}</div>
-            <div>Totale: {formatCents(order.amount_total, order.currency)}</div>
+            <div>Created: {formatDate(order.created_at)}</div>
+            <div>Current status: {getOrderStatusLabel(order.status)}</div>
+            <div>Subtotal: {formatCents(order.amount_subtotal, order.currency)}</div>
+            <div>Total: {formatCents(order.amount_total, order.currency)}</div>
           </div>
         </section>
 
@@ -140,10 +140,10 @@ export default async function CustomerOrderDetailPage({
             padding: 20,
           }}
         >
-          <h2 style={{ marginTop: 0 }}>Prodotti acquistati</h2>
+          <h2 style={{ marginTop: 0 }}>Items purchased</h2>
 
           {items.length === 0 ? (
-            <p style={{ marginBottom: 0 }}>Nessun line item disponibile.</p>
+            <p style={{ marginBottom: 0 }}>No line items available.</p>
           ) : (
             <div style={{ display: "grid", gap: 12 }}>
               {items.map((item, index) => (
@@ -159,13 +159,13 @@ export default async function CustomerOrderDetailPage({
                     {item.productName}
                   </div>
                   <div style={{ display: "grid", gap: 6, opacity: 0.9 }}>
-                    <div>Variante: {item.variantName}</div>
-                    <div>Quantità: {item.qty}</div>
+                    <div>Variant: {item.variantName}</div>
+                    <div>Quantity: {item.qty}</div>
                     <div>
-                      Prezzo unitario: {formatEUR(item.unitPriceEUR, order.currency)}
+                      Unit price: {formatEUR(item.unitPriceEUR, order.currency)}
                     </div>
                     <div>
-                      Totale riga: {formatEUR(item.lineTotalEUR, order.currency)}
+                      Line total: {formatEUR(item.lineTotalEUR, order.currency)}
                     </div>
                   </div>
                 </article>
@@ -181,12 +181,12 @@ export default async function CustomerOrderDetailPage({
             padding: 20,
           }}
         >
-          <h2 style={{ marginTop: 0 }}>Informazioni cliente</h2>
+          <h2 style={{ marginTop: 0 }}>Customer details</h2>
           <div style={{ display: "grid", gap: 10 }}>
-            <div>Nome: {order.customer_name ?? "—"}</div>
+            <div>Name: {order.customer_name ?? "—"}</div>
             <div>Email: {order.customer_email ?? "—"}</div>
-            <div>Telefono: {order.customer_phone ?? "—"}</div>
-            <div>Cod. fiscale: {order.tax_code ?? "—"}</div>
+            <div>Phone: {order.customer_phone ?? "—"}</div>
+            <div>Tax ID: {order.tax_code ?? "—"}</div>
           </div>
         </section>
 
@@ -197,7 +197,7 @@ export default async function CustomerOrderDetailPage({
             padding: 20,
           }}
         >
-          <h2 style={{ marginTop: 0 }}>Spedizione</h2>
+          <h2 style={{ marginTop: 0 }}>Shipping</h2>
           <div style={{ display: "grid", gap: 8 }}>
             <div>{order.shipping_line1 ?? "—"}</div>
             {order.shipping_line2 ? <div>{order.shipping_line2}</div> : null}
@@ -221,7 +221,7 @@ export default async function CustomerOrderDetailPage({
             padding: 20,
           }}
         >
-          <h2 style={{ marginTop: 0 }}>Note ordine</h2>
+          <h2 style={{ marginTop: 0 }}>Order notes</h2>
           <p style={{ marginBottom: 0 }}>{order.order_note ?? "—"}</p>
         </section>
       </div>

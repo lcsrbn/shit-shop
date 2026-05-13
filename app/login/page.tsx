@@ -12,11 +12,11 @@ export default function LoginPage() {
           letterSpacing: "-0.03em",
         }}
       >
-        Accedi
+        Sign in
       </h1>
 
       <p style={{ marginTop: 10, opacity: 0.75 }}>
-        Accedi o crea il tuo account per vedere i tuoi ordini.
+        Sign in or create an account to view your orders.
       </p>
 
       <div style={{ marginTop: 18 }}>

@@ -33,7 +33,7 @@ export default function SuccessClient() {
       }}
     >
       <p style={{ margin: 0, opacity: 0.8 }}>
-        Grazie per l’acquisto. Il pagamento è stato ricevuto correttamente.
+        Thank you for your purchase. Your payment was received successfully.
       </p>
 
       <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
@@ -51,7 +51,7 @@ export default function SuccessClient() {
             cursor: "pointer",
           }}
         >
-          Torna allo shop
+          Back to shop
         </button>
 
         <button
@@ -68,7 +68,7 @@ export default function SuccessClient() {
             cursor: "pointer",
           }}
         >
-          Vedi ordini
+          View orders
         </button>
       </div>
     </div>

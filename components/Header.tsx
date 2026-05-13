@@ -48,7 +48,7 @@ export default function Header() {
           fontSize: 15,
         }}
       >
-        <Link href="/orders">Ordini</Link>
+        <Link href="/orders">Orders</Link>
 
         {isOrdersPage ? (
           <form action="/api/logout" method="post">

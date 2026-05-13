@@ -130,7 +130,7 @@ export async function POST(req: Request) {
           key: "tax_code",
           label: {
             type: "custom",
-            custom: "Codice fiscale",
+            custom: "Tax ID",
           },
           type: "text",
           optional: true,
@@ -139,7 +139,7 @@ export async function POST(req: Request) {
           key: "order_note",
           label: {
             type: "custom",
-            custom: "Note ordine",
+            custom: "Order notes",
           },
           type: "text",
           optional: true,

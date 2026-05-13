@@ -25,7 +25,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="it">
+    <html lang="en">
       <body>
         <CartProvider>
           <LayoutInner>{children}</LayoutInner>
