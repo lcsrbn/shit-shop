@@ -190,29 +190,6 @@ export async function POST(req: Request) {
         });
       }
 
-      try {
-        await Promise.all([
-          sendCustomerOrderConfirmation({
-            orderId: session.metadata?.orderId ?? session.id,
-            customerEmail,
-            customerName: shippingName,
-            amountTotal: session.amount_total ?? null,
-            currency: session.currency ?? null,
-            items: itemsJson,
-          }),
-          sendAdminOrderNotification({
-            orderId: session.metadata?.orderId ?? session.id,
-            customerEmail,
-            customerName: shippingName,
-            amountTotal: session.amount_total ?? null,
-            currency: session.currency ?? null,
-            items: itemsJson,
-          }),
-        ]);
-      } catch (emailError) {
-        console.error("Order email error:", emailError);
-      }
-
       console.log("✅ order saved", {
         stripeSessionId: session.id,
         orderId: session.metadata?.orderId ?? null,
@@ -221,6 +198,30 @@ export async function POST(req: Request) {
         amountTotal: session.amount_total ?? null,
         itemsCount: itemsJson.length,
       });
+
+      try {
+        await sendCustomerOrderConfirmation({
+          orderId: session.metadata?.orderId ?? null,
+          customerEmail,
+          customerName: shippingName,
+          amountTotal: session.amount_total ?? null,
+          currency: session.currency ?? "EUR",
+          items: itemsJson,
+        });
+
+        await sendAdminOrderNotification({
+          orderId: session.metadata?.orderId ?? null,
+          customerEmail,
+          customerName: shippingName,
+          amountTotal: session.amount_total ?? null,
+          currency: session.currency ?? "EUR",
+          items: itemsJson,
+        });
+
+        console.log("✅ order emails sent");
+      } catch (emailError) {
+        console.error("❌ order email error:", emailError);
+      }
     }
 
     return Response.json({ received: true });
