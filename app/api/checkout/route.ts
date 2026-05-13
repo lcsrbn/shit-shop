@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import { getProductById, getVariantById } from "@/lib/products";
+import { getSupabaseServerAuthClient } from "@/lib/supabase-server-auth";
 
 export const runtime = "nodejs";
 
@@ -19,11 +20,35 @@ function clampQty(q: number) {
 export async function POST(req: Request) {
   try {
     if (!process.env.STRIPE_SECRET_KEY) {
-      return NextResponse.json({ error: "Missing STRIPE_SECRET_KEY" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Missing STRIPE_SECRET_KEY" },
+        { status: 500 }
+      );
     }
 
     if (!process.env.NEXT_PUBLIC_SITE_URL) {
-      return NextResponse.json({ error: "Missing NEXT_PUBLIC_SITE_URL" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Missing NEXT_PUBLIC_SITE_URL" },
+        { status: 500 }
+      );
+    }
+
+    const supabase = await getSupabaseServerAuthClient();
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError) {
+      console.error("Checkout auth error:", userError);
+    }
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "You must be logged in to checkout" },
+        { status: 401 }
+      );
     }
 
     const body = (await req.json()) as ReqBody;
@@ -44,20 +69,22 @@ export async function POST(req: Request) {
         throw new Error(`Unknown variant id: ${variantId} for product ${id}`);
       }
 
+      const normalizedQty = clampQty(qty);
+
       return {
         productId: product.id,
         productName: product.name,
         variantId: variant.id,
         variantName: variant.name,
         sku: variant.sku,
-        qty: clampQty(qty),
+        qty: normalizedQty,
         unitPriceEUR: variant.priceEUR,
-        lineTotalEUR: variant.priceEUR * clampQty(qty),
+        lineTotalEUR: variant.priceEUR * normalizedQty,
       };
     });
 
-    const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = normalizedItems.map(
-      (item) => ({
+    const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] =
+      normalizedItems.map((item) => ({
         quantity: item.qty,
         price_data: {
           currency: "eur",
@@ -66,14 +93,15 @@ export async function POST(req: Request) {
             name: `${item.productName} · ${item.variantName}`,
           },
         },
-      })
-    );
+      }));
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       line_items,
       success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/success`,
       cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/cancel`,
+
+      customer_email: user.email,
 
       billing_address_collection: "required",
       phone_number_collection: {
@@ -121,6 +149,8 @@ export async function POST(req: Request) {
       metadata: {
         source: "shit-shop",
         orderId: body.orderId ?? "",
+        userId: user.id,
+        userEmail: user.email ?? "",
         itemsJson: JSON.stringify(normalizedItems),
       },
     });

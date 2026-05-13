@@ -87,9 +87,12 @@ export async function POST(req: Request) {
     if (event.type === "checkout.session.completed") {
       const rawSession = event.data.object as Stripe.Checkout.Session;
 
-      const fetchedSession = await stripe.checkout.sessions.retrieve(rawSession.id, {
-        expand: ["payment_intent"],
-      });
+      const fetchedSession = await stripe.checkout.sessions.retrieve(
+        rawSession.id,
+        {
+          expand: ["payment_intent"],
+        }
+      );
 
       const session = fetchedSession as SessionWithExtras;
       const supabase = getSupabaseServerClient();
@@ -103,11 +106,22 @@ export async function POST(req: Request) {
           : session.payment_intent;
 
       const customerEmail =
-        session.customer_details?.email ??
-        session.customer_email ??
-        null;
+        session.customer_details?.email ?? session.customer_email ?? null;
 
-      const userId = await getUserIdByEmail(customerEmail);
+      const metadataUserId = session.metadata?.userId ?? null;
+      const userId = metadataUserId ?? (await getUserIdByEmail(customerEmail));
+
+      if (!userId) {
+        console.error("Missing user_id for completed checkout session", {
+          stripeSessionId: session.id,
+          customerEmail,
+          metadata: session.metadata,
+        });
+
+        return new Response("Missing user_id for order", {
+          status: 500,
+        });
+      }
 
       const shippingAddress =
         session.collected_information?.shipping_details?.address ??
@@ -122,9 +136,7 @@ export async function POST(req: Request) {
         null;
 
       const customerPhone =
-        session.customer_details?.phone ??
-        paymentIntent?.shipping?.phone ??
-        null;
+        session.customer_details?.phone ?? paymentIntent?.shipping?.phone ?? null;
 
       const itemsJson = readItemsJsonFromMetadata(session);
 
