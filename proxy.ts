@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const MAINTENANCE_MODE = true;
+const MAINTENANCE_MODE = false;
 
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
