@@ -1,5 +1,9 @@
 import Stripe from "stripe";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
+import {
+  sendAdminOrderNotification,
+  sendCustomerOrderConfirmation,
+} from "@/lib/email";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -184,6 +188,29 @@ export async function POST(req: Request) {
         return new Response(`Database insert error: ${error.message}`, {
           status: 500,
         });
+      }
+
+      try {
+        await Promise.all([
+          sendCustomerOrderConfirmation({
+            orderId: session.metadata?.orderId ?? session.id,
+            customerEmail,
+            customerName: shippingName,
+            amountTotal: session.amount_total ?? null,
+            currency: session.currency ?? null,
+            items: itemsJson,
+          }),
+          sendAdminOrderNotification({
+            orderId: session.metadata?.orderId ?? session.id,
+            customerEmail,
+            customerName: shippingName,
+            amountTotal: session.amount_total ?? null,
+            currency: session.currency ?? null,
+            items: itemsJson,
+          }),
+        ]);
+      } catch (emailError) {
+        console.error("Order email error:", emailError);
       }
 
       console.log("✅ order saved", {
