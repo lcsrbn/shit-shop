@@ -21,6 +21,11 @@ export type DBProduct = {
   variants: DBProductVariant[];
 };
 
+export type DBProductWithVariant = {
+  product: DBProduct;
+  variant: DBProductVariant;
+};
+
 export async function getAllActiveProducts(): Promise<DBProduct[]> {
   const supabase = getSupabaseServerClient();
 
@@ -49,7 +54,6 @@ export async function getAllActiveProducts(): Promise<DBProduct[]> {
 
   if (error) {
     console.error("getAllActiveProducts error:", error);
-
     return [];
   }
 
@@ -66,9 +70,7 @@ export async function getProductByPublicId(
 ): Promise<DBProduct | null> {
   const products = await getAllActiveProducts();
 
-  return (
-    products.find((product) => product.public_id === publicId) ?? null
-  );
+  return products.find((product) => product.public_id === publicId) ?? null;
 }
 
 export async function getVariantByPublicId(
@@ -81,10 +83,31 @@ export async function getVariantByPublicId(
       (v) => v.public_id === variantPublicId
     );
 
-    if (variant) {
-      return variant;
-    }
+    if (variant) return variant;
   }
 
   return null;
+}
+
+export async function getProductAndVariantByPublicIds({
+  productPublicId,
+  variantPublicId,
+}: {
+  productPublicId: string;
+  variantPublicId: string;
+}): Promise<DBProductWithVariant | null> {
+  const product = await getProductByPublicId(productPublicId);
+
+  if (!product) return null;
+
+  const variant = product.variants.find(
+    (item) => item.public_id === variantPublicId
+  );
+
+  if (!variant) return null;
+
+  return {
+    product,
+    variant,
+  };
 }

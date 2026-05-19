@@ -1,7 +1,7 @@
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
-import { getProductById, getVariantById } from "@/lib/products";
 import { getSupabaseServerAuthClient } from "@/lib/supabase-server-auth";
+import { getProductAndVariantByPublicIds } from "@/lib/products-db";
 
 export const runtime = "nodejs";
 
@@ -57,31 +57,37 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No items" }, { status: 400 });
     }
 
-    const normalizedItems = body.items.map(({ id, variantId, qty }) => {
-      const product = getProductById(id);
-      const variant = getVariantById(id, variantId);
+    const normalizedItems = await Promise.all(
+      body.items.map(async ({ id, variantId, qty }) => {
+        const match = await getProductAndVariantByPublicIds({
+          productPublicId: id,
+          variantPublicId: variantId,
+        });
 
-      if (!product) {
-        throw new Error(`Unknown product id: ${id}`);
-      }
+        if (!match) {
+          throw new Error(`Unknown product or variant: ${id} / ${variantId}`);
+        }
 
-      if (!variant) {
-        throw new Error(`Unknown variant id: ${variantId} for product ${id}`);
-      }
+        const normalizedQty = clampQty(qty);
 
-      const normalizedQty = clampQty(qty);
+        if (match.variant.stock_quantity < normalizedQty) {
+          throw new Error(
+            `Not enough stock for ${match.product.name} · ${match.variant.name}`
+          );
+        }
 
-      return {
-        productId: product.id,
-        productName: product.name,
-        variantId: variant.id,
-        variantName: variant.name,
-        sku: variant.sku,
-        qty: normalizedQty,
-        unitPriceEUR: variant.priceEUR,
-        lineTotalEUR: variant.priceEUR * normalizedQty,
-      };
-    });
+        return {
+          productId: match.product.public_id,
+          productName: match.product.name,
+          variantId: match.variant.public_id,
+          variantName: match.variant.name,
+          sku: match.variant.sku,
+          qty: normalizedQty,
+          unitPriceEUR: Number(match.variant.price_eur),
+          lineTotalEUR: Number(match.variant.price_eur) * normalizedQty,
+        };
+      })
+    );
 
     const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] =
       normalizedItems.map((item) => ({
@@ -112,7 +118,6 @@ export async function POST(req: Request) {
           "IT",
           "AT",
           "BE",
-          "DE",
           "DK",
           "ES",
           "FI",
@@ -130,7 +135,7 @@ export async function POST(req: Request) {
           key: "tax_code",
           label: {
             type: "custom",
-            custom: "Tax ID",
+            custom: "Tax code",
           },
           type: "text",
           optional: true,
@@ -139,7 +144,7 @@ export async function POST(req: Request) {
           key: "order_note",
           label: {
             type: "custom",
-            custom: "Order notes",
+            custom: "Order note",
           },
           type: "text",
           optional: true,
