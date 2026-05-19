@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { readLocalOrders, type LocalOrder } from "@/lib/order";
-import { products } from "@/lib/products";
 
 function formatDate(ts: number) {
   try {
@@ -30,7 +29,9 @@ export default function OrdersClient() {
           background: "rgba(255,255,255,.92)",
         }}
       >
-        <p style={{ margin: 0, opacity: 0.8 }}>No orders saved in this browser.</p>
+        <p style={{ margin: 0, opacity: 0.8 }}>
+          No orders saved in this browser.
+        </p>
 
         <div style={{ marginTop: 16 }}>
           <Link
@@ -86,52 +87,40 @@ export default function OrdersClient() {
           </div>
 
           <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
-            {order.items.map((item) => {
-              const product = products.find((p) => p.id === item.id);
-              if (!product) return null;
-
-              return (
+            {order.items.length === 0 ? (
+              <div
+                style={{
+                  padding: "10px 0",
+                  borderTop: "1px solid rgba(0,0,0,.08)",
+                  opacity: 0.7,
+                }}
+              >
+                No local line items available.
+              </div>
+            ) : (
+              order.items.map((item) => (
                 <div
-                  key={`${order.id}-${item.id}`}
+                  key={`${order.id}-${item.productId}-${item.variantId}`}
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "72px 1fr auto",
+                    gridTemplateColumns: "1fr auto",
                     gap: 12,
                     alignItems: "center",
                     padding: "10px 0",
                     borderTop: "1px solid rgba(0,0,0,.08)",
                   }}
                 >
-                  <div
-                    style={{
-                      width: 72,
-                      height: 72,
-                      borderRadius: 14,
-                      overflow: "hidden",
-                      border: "1px solid rgba(0,0,0,.10)",
-                      background: "#fff",
-                    }}
-                  >
-                    <img
-                      src={product.frontImage}
-                      alt={product.name}
-                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                    />
-                  </div>
-
                   <div>
-                    <div style={{ fontWeight: 900 }}>{product.name}</div>
+                    <div style={{ fontWeight: 900 }}>
+                      Product ID: {item.productId}
+                    </div>
                     <div style={{ fontSize: 13, opacity: 0.7 }}>
-                      Qty: {item.qty} · €{product.priceEUR.toFixed(2)} ea.
+                      Variant ID: {item.variantId} · Qty: {item.qty}
                     </div>
                   </div>
-
-                  <div style={{ fontWeight: 900 }}>
-                    €{(product.priceEUR * item.qty).toFixed(2)}
-                  </div>
                 </div>
-              );
-            })}
+              ))
+            )}
           </div>
 
           <div
