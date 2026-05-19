@@ -98,28 +98,36 @@ export default function OrdersClient() {
                 No local line items available.
               </div>
             ) : (
-              order.items.map((item) => (
-                <div
-                  key={`${order.id}-${item.productId}-${item.variantId}`}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr auto",
-                    gap: 12,
-                    alignItems: "center",
-                    padding: "10px 0",
-                    borderTop: "1px solid rgba(0,0,0,.08)",
-                  }}
-                >
-                  <div>
-                    <div style={{ fontWeight: 900 }}>
-                      Product ID: {item.productId}
-                    </div>
-                    <div style={{ fontSize: 13, opacity: 0.7 }}>
-                      Variant ID: {item.variantId} · Qty: {item.qty}
+              order.items.map((item, index) => {
+                const productId =
+                  "productId" in item ? item.productId : item.id;
+              
+                const variantId =
+                  "variantId" in item ? item.variantId : "default";
+              
+                return (
+                  <div
+                    key={`${order.id}-${productId}-${variantId}-${index}`}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr auto",
+                      gap: 12,
+                      alignItems: "center",
+                      padding: "10px 0",
+                      borderTop: "1px solid rgba(0,0,0,.08)",
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 900 }}>
+                        Product ID: {productId}
+                      </div>
+                      <div style={{ fontSize: 13, opacity: 0.7 }}>
+                        Variant ID: {variantId} · Qty: {item.qty}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
 
