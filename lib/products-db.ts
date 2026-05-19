@@ -1,4 +1,5 @@
 import { getSupabaseServerClient } from "@/lib/supabase-server";
+import type { Product } from "@/lib/products";
 
 export type DBProductVariant = {
   id: string;
@@ -59,9 +60,7 @@ export async function getAllActiveProducts(): Promise<DBProduct[]> {
 
   return (data ?? []).map((product) => ({
     ...product,
-    variants: (product.variants ?? []).filter(
-      (variant) => variant.is_active
-    ),
+    variants: (product.variants ?? []).filter((variant) => variant.is_active),
   })) as DBProduct[];
 }
 
@@ -110,4 +109,49 @@ export async function getProductAndVariantByPublicIds({
     product,
     variant,
   };
+}
+
+function getFallbackImage(product: DBProduct) {
+  return product.image_url ?? "/products/poster-chaos/front.jpg";
+}
+
+function mapDBProductToUIProduct(product: DBProduct): Product | null {
+  const variants = product.variants.filter((variant) => variant.is_active);
+
+  if (variants.length === 0) {
+    return null;
+  }
+
+  const defaultVariant = variants[0];
+  const fallbackImage = getFallbackImage(product);
+
+  return {
+    id: product.public_id,
+    slug: product.slug,
+    name: product.name,
+    description: product.description ?? "",
+    coverImage: fallbackImage,
+    galleryImages: [fallbackImage],
+    variants: variants.map((variant, index) => ({
+      id: variant.public_id,
+      name: variant.name,
+      sku: variant.sku,
+      priceEUR: Number(variant.price_eur),
+      stock: variant.stock_quantity,
+      images: [fallbackImage],
+      isDefault: index === 0,
+    })),
+    defaultVariantId: defaultVariant.public_id,
+    priceEUR: Number(defaultVariant.price_eur),
+    frontImage: fallbackImage,
+    backImage: fallbackImage,
+  };
+}
+
+export async function getAllActiveProductsForUI(): Promise<Product[]> {
+  const products = await getAllActiveProducts();
+
+  return products
+    .map(mapDBProductToUIProduct)
+    .filter((product): product is Product => product !== null);
 }

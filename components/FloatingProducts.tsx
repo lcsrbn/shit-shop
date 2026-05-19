@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  products,
   type Product,
   getDefaultVariantByProductId,
   getVariantById,
@@ -18,6 +17,10 @@ type Body = {
   rot: number;
   vrot: number;
   product: Product;
+};
+
+type FloatingProductsProps = {
+  initialProducts: Product[];
 };
 
 function rand(min: number, max: number) {
@@ -64,19 +67,40 @@ function resolveAABB(a: Body, b: Body) {
   }
 }
 
+function getDefaultVariant(product: Product) {
+  return (
+    product.variants.find((variant) => variant.id === product.defaultVariantId) ??
+    product.variants.find((variant) => variant.isDefault) ??
+    product.variants[0] ??
+    null
+  );
+}
+
+function getProductVariant(product: Product, variantId: string) {
+  return product.variants.find((variant) => variant.id === variantId) ?? null;
+}
+
 type OverlayState =
   | { open: false }
   | {
       open: true;
       product: Product;
       selectedVariantId: string;
-      rect: { left: number; top: number; width: number; height: number; rotate: number };
+      rect: {
+        left: number;
+        top: number;
+        width: number;
+        height: number;
+        rotate: number;
+      };
       stage: "from-card" | "centered";
       flipped: boolean;
       qty: number;
     };
 
-export default function FloatingProducts() {
+export default function FloatingProducts({
+  initialProducts,
+}: FloatingProductsProps) {
   const cart = useCart();
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -95,7 +119,7 @@ export default function FloatingProducts() {
   const [overlay, setOverlay] = useState<OverlayState>({ open: false });
   const overlayOpen = overlay.open;
 
-  const initProducts = useMemo(() => products, []);
+  const initProducts = useMemo(() => initialProducts, [initialProducts]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -125,13 +149,21 @@ export default function FloatingProducts() {
 
     const pickBodyAt = (x: number, y: number) => {
       const items = bodiesRef.current;
+
       for (let i = items.length - 1; i >= 0; i--) {
         const b = items[i];
         const half = b.size / 2;
-        if (x >= b.x - half && x <= b.x + half && y >= b.y - half && y <= b.y + half) {
+
+        if (
+          x >= b.x - half &&
+          x <= b.x + half &&
+          y >= b.y - half &&
+          y <= b.y + half
+        ) {
           return i;
         }
       }
+
       return null;
     };
 
@@ -172,6 +204,7 @@ export default function FloatingProducts() {
       const b = bodiesRef.current[idx];
 
       const prev = lastMouse.current;
+
       if (prev) {
         const dt = Math.max(0.001, (now - prev.t) / 1000);
         const vx = (x - prev.x) / dt;
@@ -222,7 +255,8 @@ export default function FloatingProducts() {
 
       for (let i = 0; i < items.length; i++) {
         const b = items[i];
-        const isDragging = draggingIndex.current !== null && i === draggingIndex.current;
+        const isDragging =
+          draggingIndex.current !== null && i === draggingIndex.current;
 
         if (!isDragging) {
           b.x += b.vx * dt;
@@ -258,7 +292,9 @@ export default function FloatingProducts() {
       }
 
       for (let i = 0; i < items.length; i++) {
-        for (let j = i + 1; j < items.length; j++) resolveAABB(items[i], items[j]);
+        for (let j = i + 1; j < items.length; j++) {
+          resolveAABB(items[i], items[j]);
+        }
       }
 
       setBodies([...items]);
@@ -280,15 +316,22 @@ export default function FloatingProducts() {
     const el = cardRefs.current[product.id];
     if (!el) return;
 
-    const defaultVariant = getDefaultVariantByProductId(product.id);
+    const defaultVariant = getDefaultVariant(product);
     if (!defaultVariant) return;
 
     const r = el.getBoundingClientRect();
+
     setOverlay({
       open: true,
       product,
       selectedVariantId: defaultVariant.id,
-      rect: { left: r.left, top: r.top, width: r.width, height: r.height, rotate },
+      rect: {
+        left: r.left,
+        top: r.top,
+        width: r.width,
+        height: r.height,
+        rotate,
+      },
       stage: "from-card",
       flipped: false,
       qty: 1,
@@ -296,7 +339,9 @@ export default function FloatingProducts() {
 
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        setOverlay((prev) => (prev.open ? { ...prev, stage: "centered" } : prev));
+        setOverlay((prev) =>
+          prev.open ? { ...prev, stage: "centered" } : prev
+        );
       });
     });
   }
@@ -306,16 +351,32 @@ export default function FloatingProducts() {
   }
 
   function toggleFlip() {
-    setOverlay((prev) => (prev.open ? { ...prev, flipped: !prev.flipped } : prev));
+    setOverlay((prev) =>
+      prev.open ? { ...prev, flipped: !prev.flipped } : prev
+    );
   }
 
   const expandedW = "min(560px, calc(100vw - 28px))";
   const expandedH = "min(820px, calc(100vh - 28px))";
 
-  const selectedVariant =
-    overlay.open
-      ? getVariantById(overlay.product.id, overlay.selectedVariantId)
-      : null;
+  const selectedVariant = overlay.open
+    ? getProductVariant(overlay.product, overlay.selectedVariantId)
+    : null;
+
+  if (initProducts.length === 0) {
+    return (
+      <section
+        style={{
+          border: "1px solid rgba(0,0,0,.10)",
+          borderRadius: 18,
+          padding: 20,
+          background: "rgba(255,255,255,.92)",
+        }}
+      >
+        <p style={{ margin: 0 }}>No products available.</p>
+      </section>
+    );
+  }
 
   return (
     <>
@@ -363,7 +424,8 @@ export default function FloatingProducts() {
               left: overlay.stage === "from-card" ? overlay.rect.left : "50%",
               top: overlay.stage === "from-card" ? overlay.rect.top : "50%",
               width: overlay.stage === "from-card" ? overlay.rect.width : expandedW,
-              height: overlay.stage === "from-card" ? overlay.rect.height : expandedH,
+              height:
+                overlay.stage === "from-card" ? overlay.rect.height : expandedH,
               transform:
                 overlay.stage === "from-card"
                   ? `translate(0,0) rotate(${overlay.rect.rotate}deg)`
@@ -371,7 +433,10 @@ export default function FloatingProducts() {
             }}
           >
             <div className="flipStage">
-              <div className={`flipCard ${overlay.flipped ? "isFlipped" : ""}`} onClick={toggleFlip}>
+              <div
+                className={`flipCard ${overlay.flipped ? "isFlipped" : ""}`}
+                onClick={toggleFlip}
+              >
                 <div className="face frontShell">
                   <div className="cardTopbar">
                     <button
@@ -414,6 +479,7 @@ export default function FloatingProducts() {
                             onClick={(e) => {
                               e.stopPropagation();
                               if (outOfStock) return;
+
                               setOverlay((prev) =>
                                 prev.open
                                   ? { ...prev, selectedVariantId: variant.id }
@@ -447,14 +513,19 @@ export default function FloatingProducts() {
                         gap: 12,
                       }}
                     >
-                      <div className="priceLine">€ {selectedVariant.priceEUR.toFixed(2)}</div>
+                      <div className="priceLine">
+                        € {selectedVariant.priceEUR.toFixed(2)}
+                      </div>
 
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
+
                             setOverlay((prev) =>
-                              prev.open ? { ...prev, qty: Math.max(1, prev.qty - 1) } : prev
+                              prev.open
+                                ? { ...prev, qty: Math.max(1, prev.qty - 1) }
+                                : prev
                             );
                           }}
                           style={{
@@ -468,15 +539,30 @@ export default function FloatingProducts() {
                           −
                         </button>
 
-                        <div style={{ minWidth: 26, textAlign: "center", fontWeight: 900 }}>
+                        <div
+                          style={{
+                            minWidth: 26,
+                            textAlign: "center",
+                            fontWeight: 900,
+                          }}
+                        >
                           {overlay.qty}
                         </div>
 
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
+
                             setOverlay((prev) =>
-                              prev.open ? { ...prev, qty: Math.min(99, prev.qty + 1) } : prev
+                              prev.open
+                                ? {
+                                    ...prev,
+                                    qty: Math.min(
+                                      selectedVariant.stock,
+                                      Math.min(99, prev.qty + 1)
+                                    ),
+                                  }
+                                : prev
                             );
                           }}
                           style={{
@@ -508,7 +594,11 @@ export default function FloatingProducts() {
                             return;
                           }
 
-                          cart.add(overlay.product.id, selectedVariant.id, overlay.qty);
+                          cart.add(
+                            overlay.product.id,
+                            selectedVariant.id,
+                            overlay.qty
+                          );
 
                           setOverlay({ open: false });
 
@@ -523,7 +613,8 @@ export default function FloatingProducts() {
                           background: "#0b0b0b",
                           color: "#fff",
                           padding: "12px 14px",
-                          cursor: selectedVariant.stock <= 0 ? "not-allowed" : "pointer",
+                          cursor:
+                            selectedVariant.stock <= 0 ? "not-allowed" : "pointer",
                           opacity: selectedVariant.stock <= 0 ? 0.6 : 1,
                           fontWeight: 950,
                         }}
