@@ -1,11 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  type Product,
-  getDefaultVariantByProductId,
-  getVariantById,
-} from "@/lib/products";
+import type { Product } from "@/lib/product-types";
 import { useCart } from "@/lib/cart";
 
 type Body = {
@@ -67,14 +63,6 @@ function resolveAABB(a: Body, b: Body) {
   }
 }
 
-function getDefaultVariant(product: Product) {
-  return (
-    product.variants.find((variant) => variant.id === product.defaultVariantId) ??
-    product.variants.find((variant) => variant.isDefault) ??
-    product.variants[0] ??
-    null
-  );
-}
 
 function getProductVariant(product: Product, variantId: string) {
   return product.variants.find((variant) => variant.id === variantId) ?? null;
