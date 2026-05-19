@@ -21,6 +21,7 @@ export default async function Page() {
           <div style={{ fontSize: 13, color: "rgba(0,0,0,.55)" }}>
             shit-shop
           </div>
+
           <h1
             style={{
               margin: "6px 0 0",

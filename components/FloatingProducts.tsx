@@ -19,6 +19,24 @@ type FloatingProductsProps = {
   initialProducts: Product[];
 };
 
+type OverlayState =
+  | { open: false }
+  | {
+      open: true;
+      product: Product;
+      selectedVariantId: string;
+      rect: {
+        left: number;
+        top: number;
+        width: number;
+        height: number;
+        rotate: number;
+      };
+      stage: "from-card" | "centered";
+      flipped: boolean;
+      qty: number;
+    };
+
 function rand(min: number, max: number) {
   return Math.random() * (max - min) + min;
 }
@@ -63,28 +81,18 @@ function resolveAABB(a: Body, b: Body) {
   }
 }
 
+function getDefaultVariant(product: Product) {
+  return (
+    product.variants.find((variant) => variant.id === product.defaultVariantId) ??
+    product.variants.find((variant) => variant.isDefault) ??
+    product.variants[0] ??
+    null
+  );
+}
 
 function getProductVariant(product: Product, variantId: string) {
   return product.variants.find((variant) => variant.id === variantId) ?? null;
 }
-
-type OverlayState =
-  | { open: false }
-  | {
-      open: true;
-      product: Product;
-      selectedVariantId: string;
-      rect: {
-        left: number;
-        top: number;
-        width: number;
-        height: number;
-        rotate: number;
-      };
-      stage: "from-card" | "centered";
-      flipped: boolean;
-      qty: number;
-    };
 
 export default function FloatingProducts({
   initialProducts,
@@ -114,14 +122,14 @@ export default function FloatingProducts({
     if (!container) return;
 
     const rect = container.getBoundingClientRect();
-    const W = rect.width;
-    const H = rect.height;
+    const width = rect.width;
+    const height = rect.height;
 
-    bodiesRef.current = initProducts.map((p) => ({
-      product: p,
+    bodiesRef.current = initProducts.map((product) => ({
+      product,
       size: 220,
-      x: rand(140, W - 140),
-      y: rand(140, H - 140),
+      x: rand(140, Math.max(280, width - 140)),
+      y: rand(140, Math.max(280, height - 140)),
       vx: rand(-140, 140),
       vy: rand(-120, 120),
       rot: rand(-10, 10),
@@ -132,21 +140,25 @@ export default function FloatingProducts({
 
     const getMousePos = (e: MouseEvent) => {
       const r = container.getBoundingClientRect();
-      return { x: e.clientX - r.left, y: e.clientY - r.top };
+
+      return {
+        x: e.clientX - r.left,
+        y: e.clientY - r.top,
+      };
     };
 
     const pickBodyAt = (x: number, y: number) => {
       const items = bodiesRef.current;
 
       for (let i = items.length - 1; i >= 0; i--) {
-        const b = items[i];
-        const half = b.size / 2;
+        const body = items[i];
+        const half = body.size / 2;
 
         if (
-          x >= b.x - half &&
-          x <= b.x + half &&
-          y >= b.y - half &&
-          y <= b.y + half
+          x >= body.x - half &&
+          x <= body.x + half &&
+          y >= body.y - half &&
+          y <= body.y + half
         ) {
           return i;
         }
@@ -159,26 +171,37 @@ export default function FloatingProducts({
       if (overlayOpen) return;
 
       const { x, y } = getMousePos(e);
-      const idx = pickBodyAt(x, y);
-      if (idx === null) return;
+      const index = pickBodyAt(x, y);
 
-      draggingIndex.current = idx;
-      const b = bodiesRef.current[idx];
-      dragOffset.current = { x: x - b.x, y: y - b.y };
+      if (index === null) return;
+
+      draggingIndex.current = index;
+
+      const body = bodiesRef.current[index];
+      dragOffset.current = {
+        x: x - body.x,
+        y: y - body.y,
+      };
 
       bodiesRef.current = [
-        ...bodiesRef.current.slice(0, idx),
-        ...bodiesRef.current.slice(idx + 1),
-        b,
+        ...bodiesRef.current.slice(0, index),
+        ...bodiesRef.current.slice(index + 1),
+        body,
       ];
+
       draggingIndex.current = bodiesRef.current.length - 1;
 
-      lastMouse.current = { x, y, t: performance.now() };
+      lastMouse.current = {
+        x,
+        y,
+        t: performance.now(),
+      };
+
       dragDistance.current = 0;
 
-      b.vx = 0;
-      b.vy = 0;
-      b.vrot *= 0.2;
+      body.vx = 0;
+      body.vy = 0;
+      body.vrot *= 0.2;
 
       setBodies([...bodiesRef.current]);
     };
@@ -188,26 +211,34 @@ export default function FloatingProducts({
 
       const now = performance.now();
       const { x, y } = getMousePos(e);
-      const idx = draggingIndex.current;
-      const b = bodiesRef.current[idx];
+      const index = draggingIndex.current;
+      const body = bodiesRef.current[index];
 
-      const prev = lastMouse.current;
+      const previousMouse = lastMouse.current;
 
-      if (prev) {
-        const dt = Math.max(0.001, (now - prev.t) / 1000);
-        const vx = (x - prev.x) / dt;
-        const vy = (y - prev.y) / dt;
+      if (previousMouse) {
+        const dt = Math.max(0.001, (now - previousMouse.t) / 1000);
+        const vx = (x - previousMouse.x) / dt;
+        const vy = (y - previousMouse.y) / dt;
 
-        b.vx = b.vx * 0.6 + vx * 0.4;
-        b.vy = b.vy * 0.6 + vy * 0.4;
-        b.vrot = b.vrot * 0.6 + vx * 0.008 * 0.4;
+        body.vx = body.vx * 0.6 + vx * 0.4;
+        body.vy = body.vy * 0.6 + vy * 0.4;
+        body.vrot = body.vrot * 0.6 + vx * 0.008 * 0.4;
 
-        dragDistance.current += Math.hypot(x - prev.x, y - prev.y);
+        dragDistance.current += Math.hypot(
+          x - previousMouse.x,
+          y - previousMouse.y
+        );
       }
 
-      lastMouse.current = { x, y, t: now };
-      b.x = x - dragOffset.current.x;
-      b.y = y - dragOffset.current.y;
+      lastMouse.current = {
+        x,
+        y,
+        t: now,
+      };
+
+      body.x = x - dragOffset.current.x;
+      body.y = y - dragOffset.current.y;
     };
 
     const onMouseUp = () => {
@@ -216,7 +247,9 @@ export default function FloatingProducts({
     };
 
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOverlay({ open: false });
+      if (e.key === "Escape") {
+        setOverlay({ open: false });
+      }
     };
 
     container.addEventListener("mousedown", onMouseDown);
@@ -224,10 +257,13 @@ export default function FloatingProducts({
     window.addEventListener("mouseup", onMouseUp);
     window.addEventListener("keydown", onKeyDown);
 
-    const step = (t: number) => {
-      if (!lastTRef.current) lastTRef.current = t;
-      const dt = clamp((t - lastTRef.current) / 1000, 0, 0.033);
-      lastTRef.current = t;
+    const step = (time: number) => {
+      if (!lastTRef.current) {
+        lastTRef.current = time;
+      }
+
+      const dt = clamp((time - lastTRef.current) / 1000, 0, 0.033);
+      lastTRef.current = time;
 
       if (overlayOpen) {
         setBodies([...bodiesRef.current]);
@@ -235,47 +271,47 @@ export default function FloatingProducts({
         return;
       }
 
-      const r2 = container.getBoundingClientRect();
-      const width = r2.width;
-      const height = r2.height;
+      const containerRect = container.getBoundingClientRect();
+      const stageWidth = containerRect.width;
+      const stageHeight = containerRect.height;
 
       const items = bodiesRef.current;
 
       for (let i = 0; i < items.length; i++) {
-        const b = items[i];
+        const body = items[i];
         const isDragging =
           draggingIndex.current !== null && i === draggingIndex.current;
 
         if (!isDragging) {
-          b.x += b.vx * dt;
-          b.y += b.vy * dt;
-          b.rot += b.vrot * dt;
+          body.x += body.vx * dt;
+          body.y += body.vy * dt;
+          body.rot += body.vrot * dt;
 
-          b.vx *= 0.999;
-          b.vy *= 0.999;
-          b.vrot *= 0.998;
+          body.vx *= 0.999;
+          body.vy *= 0.999;
+          body.vrot *= 0.998;
         }
 
-        const half = b.size / 2;
+        const half = body.size / 2;
 
-        if (b.x - half < 0) {
-          b.x = half;
-          b.vx = Math.abs(b.vx) * 0.95;
-          b.vrot += rand(-18, 18);
-        } else if (b.x + half > width) {
-          b.x = width - half;
-          b.vx = -Math.abs(b.vx) * 0.95;
-          b.vrot += rand(-18, 18);
+        if (body.x - half < 0) {
+          body.x = half;
+          body.vx = Math.abs(body.vx) * 0.95;
+          body.vrot += rand(-18, 18);
+        } else if (body.x + half > stageWidth) {
+          body.x = stageWidth - half;
+          body.vx = -Math.abs(body.vx) * 0.95;
+          body.vrot += rand(-18, 18);
         }
 
-        if (b.y - half < 0) {
-          b.y = half;
-          b.vy = Math.abs(b.vy) * 0.95;
-          b.vrot += rand(-18, 18);
-        } else if (b.y + half > height) {
-          b.y = height - half;
-          b.vy = -Math.abs(b.vy) * 0.95;
-          b.vrot += rand(-18, 18);
+        if (body.y - half < 0) {
+          body.y = half;
+          body.vy = Math.abs(body.vy) * 0.95;
+          body.vrot += rand(-18, 18);
+        } else if (body.y + half > stageHeight) {
+          body.y = stageHeight - half;
+          body.vy = -Math.abs(body.vy) * 0.95;
+          body.vrot += rand(-18, 18);
         }
       }
 
@@ -292,7 +328,10 @@ export default function FloatingProducts({
     rafRef.current = requestAnimationFrame(step);
 
     return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+      }
+
       container.removeEventListener("mousedown", onMouseDown);
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
@@ -302,22 +341,24 @@ export default function FloatingProducts({
 
   function openOverlay(product: Product, rotate: number) {
     const el = cardRefs.current[product.id];
+
     if (!el) return;
 
     const defaultVariant = getDefaultVariant(product);
+
     if (!defaultVariant) return;
 
-    const r = el.getBoundingClientRect();
+    const rect = el.getBoundingClientRect();
 
     setOverlay({
       open: true,
       product,
       selectedVariantId: defaultVariant.id,
       rect: {
-        left: r.left,
-        top: r.top,
-        width: r.width,
-        height: r.height,
+        left: rect.left,
+        top: rect.top,
+        width: rect.width,
+        height: rect.height,
         rotate,
       },
       stage: "from-card",
@@ -327,8 +368,8 @@ export default function FloatingProducts({
 
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        setOverlay((prev) =>
-          prev.open ? { ...prev, stage: "centered" } : prev
+        setOverlay((previous) =>
+          previous.open ? { ...previous, stage: "centered" } : previous
         );
       });
     });
@@ -339,13 +380,13 @@ export default function FloatingProducts({
   }
 
   function toggleFlip() {
-    setOverlay((prev) =>
-      prev.open ? { ...prev, flipped: !prev.flipped } : prev
+    setOverlay((previous) =>
+      previous.open ? { ...previous, flipped: !previous.flipped } : previous
     );
   }
 
-  const expandedW = "min(560px, calc(100vw - 28px))";
-  const expandedH = "min(820px, calc(100vh - 28px))";
+  const expandedWidth = "min(560px, calc(100vw - 28px))";
+  const expandedHeight = "min(820px, calc(100vh - 28px))";
 
   const selectedVariant = overlay.open
     ? getProductVariant(overlay.product, overlay.selectedVariantId)
@@ -371,32 +412,35 @@ export default function FloatingProducts({
       <div ref={containerRef} className="stage">
         <div className="hint">drag & throw · click = open · click card = flip</div>
 
-        {bodies.map((b) => (
+        {bodies.map((body) => (
           <div
-            key={b.product.id}
+            key={body.product.id}
             ref={(node) => {
-              cardRefs.current[b.product.id] = node;
+              cardRefs.current[body.product.id] = node;
             }}
             className="fcard"
             onClick={() => {
               if (dragDistance.current > 6) return;
-              openOverlay(b.product, b.rot);
+              openOverlay(body.product, body.rot);
             }}
             style={{
-              left: b.x,
-              top: b.y,
-              transform: `translate(-50%,-50%) rotate(${b.rot}deg)`,
+              left: body.x,
+              top: body.y,
+              transform: `translate(-50%,-50%) rotate(${body.rot}deg)`,
             }}
           >
             <div className="fcardTop">
-              <img src={b.product.frontImage} alt={b.product.name} />
+              <img src={body.product.frontImage} alt={body.product.name} />
             </div>
 
             <div className="fcardMeta">
               <div>
-                <div className="fcardTitle">{b.product.name}</div>
-                <div className="fcardPrice">€{b.product.priceEUR.toFixed(2)}</div>
+                <div className="fcardTitle">{body.product.name}</div>
+                <div className="fcardPrice">
+                  €{body.product.priceEUR.toFixed(2)}
+                </div>
               </div>
+
               <div className="pill">open</div>
             </div>
           </div>
@@ -411,9 +455,14 @@ export default function FloatingProducts({
             style={{
               left: overlay.stage === "from-card" ? overlay.rect.left : "50%",
               top: overlay.stage === "from-card" ? overlay.rect.top : "50%",
-              width: overlay.stage === "from-card" ? overlay.rect.width : expandedW,
+              width:
+                overlay.stage === "from-card"
+                  ? overlay.rect.width
+                  : expandedWidth,
               height:
-                overlay.stage === "from-card" ? overlay.rect.height : expandedH,
+                overlay.stage === "from-card"
+                  ? overlay.rect.height
+                  : expandedHeight,
               transform:
                 overlay.stage === "from-card"
                   ? `translate(0,0) rotate(${overlay.rect.rotate}deg)`
@@ -443,7 +492,10 @@ export default function FloatingProducts({
 
                     <div className="hero">
                       <img
-                        src={selectedVariant.images[0] ?? overlay.product.frontImage}
+                        src={
+                          selectedVariant.images[0] ??
+                          overlay.product.frontImage
+                        }
                         alt={overlay.product.name}
                       />
                     </div>
@@ -466,12 +518,17 @@ export default function FloatingProducts({
                             key={variant.id}
                             onClick={(e) => {
                               e.stopPropagation();
+
                               if (outOfStock) return;
 
-                              setOverlay((prev) =>
-                                prev.open
-                                  ? { ...prev, selectedVariantId: variant.id }
-                                  : prev
+                              setOverlay((previous) =>
+                                previous.open
+                                  ? {
+                                      ...previous,
+                                      selectedVariantId: variant.id,
+                                      qty: Math.min(previous.qty, variant.stock),
+                                    }
+                                  : previous
                               );
                             }}
                             style={{
@@ -505,15 +562,24 @@ export default function FloatingProducts({
                         € {selectedVariant.priceEUR.toFixed(2)}
                       </div>
 
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                        }}
+                      >
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
 
-                            setOverlay((prev) =>
-                              prev.open
-                                ? { ...prev, qty: Math.max(1, prev.qty - 1) }
-                                : prev
+                            setOverlay((previous) =>
+                              previous.open
+                                ? {
+                                    ...previous,
+                                    qty: Math.max(1, previous.qty - 1),
+                                  }
+                                : previous
                             );
                           }}
                           style={{
@@ -541,16 +607,16 @@ export default function FloatingProducts({
                           onClick={(e) => {
                             e.stopPropagation();
 
-                            setOverlay((prev) =>
-                              prev.open
+                            setOverlay((previous) =>
+                              previous.open
                                 ? {
-                                    ...prev,
+                                    ...previous,
                                     qty: Math.min(
                                       selectedVariant.stock,
-                                      Math.min(99, prev.qty + 1)
+                                      Math.min(99, previous.qty + 1)
                                     ),
                                   }
-                                : prev
+                                : previous
                             );
                           }}
                           style={{
@@ -570,7 +636,7 @@ export default function FloatingProducts({
                       Stock available: {selectedVariant.stock}
                     </div>
 
-                    <div className="desc">{overlay.product.description ?? ""}</div>
+                    <div className="desc">{overlay.product.description}</div>
 
                     <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
                       <button
@@ -602,12 +668,16 @@ export default function FloatingProducts({
                           color: "#fff",
                           padding: "12px 14px",
                           cursor:
-                            selectedVariant.stock <= 0 ? "not-allowed" : "pointer",
+                            selectedVariant.stock <= 0
+                              ? "not-allowed"
+                              : "pointer",
                           opacity: selectedVariant.stock <= 0 ? 0.6 : 1,
                           fontWeight: 950,
                         }}
                       >
-                        {selectedVariant.stock <= 0 ? "Out of stock" : "Add to cart"}
+                        {selectedVariant.stock <= 0
+                          ? "Out of stock"
+                          : "Add to cart"}
                       </button>
                     </div>
 

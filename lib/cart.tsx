@@ -1,11 +1,18 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import type { Product, ProductVariant } from "@/lib/product-types";
 import {
   getDefaultVariantByProductId,
   getProductById,
   getVariantById,
-  products,
 } from "@/lib/products";
 
 type LegacyCartItem = {
@@ -14,7 +21,7 @@ type LegacyCartItem = {
 };
 
 export type CartItem = {
-  id: string; // alias legacy = productId
+  id: string;
   productId: string;
   variantId: string;
   qty: number;
@@ -22,12 +29,12 @@ export type CartItem = {
 
 type CartDetailedItem = {
   key: string;
-  id: string; // alias legacy = productId
+  id: string;
   productId: string;
   variantId: string;
   qty: number;
-  product: (typeof products)[number];
-  variant: NonNullable<ReturnType<typeof getVariantById>>;
+  product: Product;
+  variant: ProductVariant;
   lineEUR: number;
 };
 
@@ -54,18 +61,29 @@ function itemKey(productId: string, variantId: string) {
   return `${productId}__${variantId}`;
 }
 
-function normalize(items: Array<CartItem | LegacyCartItem>): CartItem[] {
+function clampQty(qty: unknown) {
+  const parsed = Math.floor(Number(qty));
+  if (!Number.isFinite(parsed)) return 1;
+  return Math.max(1, Math.min(99, parsed));
+}
+
+function normalize(
+  products: Product[],
+  items: Array<CartItem | LegacyCartItem>
+): CartItem[] {
   const mapped = (items ?? [])
-    .map((x) => {
-      if (!x || typeof x.qty === "undefined") return null;
+    .map((item) => {
+      if (!item || typeof item.qty === "undefined") return null;
 
-      // formato nuovo
-      if ("productId" in x && "variantId" in x) {
-        const productId = String(x.productId);
-        const variantId = String(x.variantId);
-        const qty = Math.max(1, Math.min(99, Math.floor(Number(x.qty))));
+      if ("productId" in item && "variantId" in item) {
+        const productId = String(item.productId);
+        const variantId = String(item.variantId);
+        const qty = clampQty(item.qty);
 
-        if (!productId || !variantId || !Number.isFinite(qty)) return null;
+        const product = getProductById(products, productId);
+        const variant = getVariantById(product, variantId);
+
+        if (!product || !variant) return null;
 
         return {
           id: productId,
@@ -75,13 +93,12 @@ function normalize(items: Array<CartItem | LegacyCartItem>): CartItem[] {
         } satisfies CartItem;
       }
 
-      // formato legacy: { id, qty }
-      if ("id" in x) {
-        const productId = String(x.id);
-        const defaultVariant = getDefaultVariantByProductId(productId);
-        const qty = Math.max(1, Math.min(99, Math.floor(Number(x.qty))));
+      if ("id" in item) {
+        const productId = String(item.id);
+        const defaultVariant = getDefaultVariantByProductId(products, productId);
+        const qty = clampQty(item.qty);
 
-        if (!productId || !defaultVariant || !Number.isFinite(qty)) return null;
+        if (!productId || !defaultVariant) return null;
 
         return {
           id: productId,
@@ -93,39 +110,56 @@ function normalize(items: Array<CartItem | LegacyCartItem>): CartItem[] {
 
       return null;
     })
-    .filter(Boolean) as CartItem[];
+    .filter((item): item is CartItem => item !== null);
 
   mapped.sort((a, b) => {
     const ak = itemKey(a.productId, a.variantId);
     const bk = itemKey(b.productId, b.variantId);
+
     return ak < bk ? -1 : ak > bk ? 1 : 0;
   });
 
   return mapped;
 }
 
-function safeParse(raw: string | null): CartItem[] {
+function safeParse(products: Product[], raw: string | null): CartItem[] {
   if (!raw) return [];
+
   try {
     const parsed = JSON.parse(raw);
+
     if (!Array.isArray(parsed)) return [];
-    return normalize(parsed as Array<CartItem | LegacyCartItem>);
+
+    return normalize(products, parsed as Array<CartItem | LegacyCartItem>);
   } catch {
     return [];
   }
 }
 
-function serialize(items: CartItem[]) {
-  return JSON.stringify(normalize(items));
+function serialize(products: Product[], items: CartItem[]) {
+  return JSON.stringify(normalize(products, items));
 }
 
-function readStorage(): { items: CartItem[]; raw: string } {
-  if (typeof window === "undefined") return { items: [], raw: "[]" };
+function readStorage(products: Product[]): { items: CartItem[]; raw: string } {
+  if (typeof window === "undefined") {
+    return { items: [], raw: "[]" };
+  }
+
   const raw = window.localStorage.getItem(STORAGE_KEY) ?? "[]";
-  return { items: safeParse(raw), raw };
+
+  return {
+    items: safeParse(products, raw),
+    raw,
+  };
 }
 
-export function CartProvider({ children }: { children: React.ReactNode }) {
+export function CartProvider({
+  children,
+  products,
+}: {
+  children: React.ReactNode;
+  products: Product[];
+}) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [ready, setReady] = useState(false);
 
@@ -133,7 +167,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const bcRef = useRef<BroadcastChannel | null>(null);
 
   useEffect(() => {
-    const { items: fromStorage, raw } = readStorage();
+    const { items: fromStorage, raw } = readStorage(products);
+
     lastSavedRawRef.current = raw;
     setItems(fromStorage);
     setReady(true);
@@ -144,34 +179,41 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
       bc.onmessage = (ev) => {
         const msg = ev.data as { type: string; raw?: string } | null;
-        if (!msg || msg.type !== "CART_SYNC" || typeof msg.raw !== "string") return;
+
+        if (!msg || msg.type !== "CART_SYNC" || typeof msg.raw !== "string") {
+          return;
+        }
+
         lastSavedRawRef.current = msg.raw;
-        setItems(safeParse(msg.raw));
+        setItems(safeParse(products, msg.raw));
       };
     }
 
     function onStorage(e: StorageEvent) {
       if (e.key !== STORAGE_KEY) return;
-      const raw2 = e.newValue ?? "[]";
-      lastSavedRawRef.current = raw2;
-      setItems(safeParse(raw2));
+
+      const raw = e.newValue ?? "[]";
+      lastSavedRawRef.current = raw;
+      setItems(safeParse(products, raw));
     }
 
     window.addEventListener("storage", onStorage);
 
     return () => {
       window.removeEventListener("storage", onStorage);
+
       if (bcRef.current) {
         bcRef.current.close();
         bcRef.current = null;
       }
     };
-  }, []);
+  }, [products]);
 
   useEffect(() => {
     if (!ready || typeof window === "undefined") return;
 
-    const raw = serialize(items);
+    const raw = serialize(products, items);
+
     if (raw === lastSavedRawRef.current) return;
 
     try {
@@ -179,45 +221,48 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       lastSavedRawRef.current = raw;
       bcRef.current?.postMessage({ type: "CART_SYNC", raw });
     } catch {}
-  }, [items, ready]);
+  }, [items, products, ready]);
 
   const api = useMemo<CartApi>(() => {
-    const norm = normalize(items);
+    const norm = normalize(products, items);
 
     const detailedItems: CartDetailedItem[] = norm
-      .map((it) => {
-        const product = getProductById(it.productId);
-        const variant = getVariantById(it.productId, it.variantId);
+      .map((item) => {
+        const product = getProductById(products, item.productId);
+        const variant = getVariantById(product, item.variantId);
 
         if (!product || !variant) return null;
 
         return {
-          key: itemKey(it.productId, it.variantId),
-          id: it.productId,
-          productId: it.productId,
-          variantId: it.variantId,
-          qty: it.qty,
+          key: itemKey(item.productId, item.variantId),
+          id: item.productId,
+          productId: item.productId,
+          variantId: item.variantId,
+          qty: item.qty,
           product,
           variant,
-          lineEUR: variant.priceEUR * it.qty,
+          lineEUR: variant.priceEUR * item.qty,
         };
       })
-      .filter(Boolean) as CartDetailedItem[];
+      .filter((item): item is CartDetailedItem => item !== null);
 
-    const count = norm.reduce((acc, it) => acc + it.qty, 0);
-    const subtotalEUR = detailedItems.reduce((acc, it) => acc + it.lineEUR, 0);
+    const count = norm.reduce((acc, item) => acc + item.qty, 0);
+    const subtotalEUR = detailedItems.reduce(
+      (acc, item) => acc + item.lineEUR,
+      0
+    );
 
     function add(productId: string, variantId: string, qty = 1) {
-      const q = Math.max(1, Math.min(99, Math.floor(qty)));
+      const q = clampQty(qty);
 
       setItems((prev) => {
-        const base = normalize(prev);
+        const base = normalize(products, prev);
         const idx = base.findIndex(
-          (x) => x.productId === productId && x.variantId === variantId
+          (item) => item.productId === productId && item.variantId === variantId
         );
 
         if (idx === -1) {
-          return normalize([
+          return normalize(products, [
             ...base,
             {
               id: productId,
@@ -229,35 +274,39 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         }
 
         const next = [...base];
+
         next[idx] = {
           ...next[idx],
           qty: Math.min(99, next[idx].qty + q),
         };
-        return normalize(next);
+
+        return normalize(products, next);
       });
     }
 
     function setQty(productId: string, variantId: string, qty: number) {
-      const q = Math.max(1, Math.min(99, Math.floor(qty)));
+      const q = clampQty(qty);
 
       setItems((prev) => {
-        const base = normalize(prev);
+        const base = normalize(products, prev);
         const idx = base.findIndex(
-          (x) => x.productId === productId && x.variantId === variantId
+          (item) => item.productId === productId && item.variantId === variantId
         );
 
         if (idx === -1) return base;
 
         const next = [...base];
         next[idx] = { ...next[idx], qty: q };
-        return normalize(next);
+
+        return normalize(products, next);
       });
     }
 
     function remove(productId: string, variantId: string) {
       setItems((prev) =>
-        normalize(prev).filter(
-          (x) => !(x.productId === productId && x.variantId === variantId)
+        normalize(products, prev).filter(
+          (item) =>
+            !(item.productId === productId && item.variantId === variantId)
         )
       );
     }
@@ -267,7 +316,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
 
     function replaceAll(nextItems: Array<CartItem | LegacyCartItem>) {
-      setItems(normalize(nextItems));
+      setItems(normalize(products, nextItems));
     }
 
     return {
@@ -282,13 +331,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       clear,
       replaceAll,
     };
-  }, [items, ready]);
+  }, [items, products, ready]);
 
   return <CartCtx.Provider value={api}>{children}</CartCtx.Provider>;
 }
 
 export function useCart() {
   const ctx = useContext(CartCtx);
-  if (!ctx) throw new Error("useCart must be used within CartProvider");
+
+  if (!ctx) {
+    throw new Error("useCart must be used within CartProvider");
+  }
+
   return ctx;
 }

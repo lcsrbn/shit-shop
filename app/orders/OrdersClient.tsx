@@ -12,6 +12,14 @@ function formatDate(ts: number) {
   }
 }
 
+function getLocalProductId(item: LocalOrder["items"][number]) {
+  return "productId" in item ? item.productId : item.id;
+}
+
+function getLocalVariantId(item: LocalOrder["items"][number]) {
+  return "variantId" in item ? item.variantId : "default";
+}
+
 export default function OrdersClient() {
   const [orders, setOrders] = useState<LocalOrder[]>([]);
 
@@ -99,12 +107,9 @@ export default function OrdersClient() {
               </div>
             ) : (
               order.items.map((item, index) => {
-                const productId =
-                  "productId" in item ? item.productId : item.id;
-              
-                const variantId =
-                  "variantId" in item ? item.variantId : "default";
-              
+                const productId = getLocalProductId(item);
+                const variantId = getLocalVariantId(item);
+
                 return (
                   <div
                     key={`${order.id}-${productId}-${variantId}-${index}`}

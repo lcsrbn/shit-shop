@@ -48,7 +48,6 @@ function mapDBProductToUIProduct(product: DBProduct): Product | null {
     description: product.description ?? "",
     coverImage: fallbackImage,
     galleryImages: [fallbackImage],
-
     variants: variants.map((variant, index) => ({
       id: variant.public_id,
       name: variant.name,
@@ -58,10 +57,7 @@ function mapDBProductToUIProduct(product: DBProduct): Product | null {
       images: [fallbackImage],
       isDefault: index === 0,
     })),
-
     defaultVariantId: defaultVariant.public_id,
-
-    // legacy compatibility
     priceEUR: Number(defaultVariant.price_eur),
     frontImage: fallbackImage,
     backImage: fallbackImage,
@@ -101,9 +97,7 @@ export async function getAllActiveProducts(): Promise<DBProduct[]> {
 
   return (data ?? []).map((product) => ({
     ...product,
-    variants: (product.variants ?? []).filter(
-      (variant) => variant.is_active
-    ),
+    variants: (product.variants ?? []).filter((variant) => variant.is_active),
   })) as DBProduct[];
 }
 
@@ -120,27 +114,7 @@ export async function getProductByPublicId(
 ): Promise<DBProduct | null> {
   const products = await getAllActiveProducts();
 
-  return (
-    products.find((product) => product.public_id === publicId) ?? null
-  );
-}
-
-export async function getVariantByPublicId(
-  variantPublicId: string
-): Promise<DBProductVariant | null> {
-  const products = await getAllActiveProducts();
-
-  for (const product of products) {
-    const variant = product.variants.find(
-      (v) => v.public_id === variantPublicId
-    );
-
-    if (variant) {
-      return variant;
-    }
-  }
-
-  return null;
+  return products.find((product) => product.public_id === publicId) ?? null;
 }
 
 export async function getProductAndVariantByPublicIds({
@@ -154,9 +128,8 @@ export async function getProductAndVariantByPublicIds({
 
   if (!product) return null;
 
-  const variant = product.variants.find(
-    (item) => item.public_id === variantPublicId
-  );
+  const variant =
+    product.variants.find((item) => item.public_id === variantPublicId) ?? null;
 
   if (!variant) return null;
 

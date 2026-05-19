@@ -3,6 +3,7 @@ import "./globals.css";
 import { CartProvider } from "@/lib/cart";
 import SiteChrome from "@/components/SiteChrome";
 import Header from "@/components/Header";
+import { getAllActiveProductsForUI } from "@/lib/products-db";
 
 export const metadata: Metadata = {
   title: "shit-shop",
@@ -19,15 +20,17 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const products = await getAllActiveProductsForUI();
+
   return (
     <html lang="en">
       <body>
-        <CartProvider>
+        <CartProvider products={products}>
           <LayoutInner>{children}</LayoutInner>
         </CartProvider>
       </body>
