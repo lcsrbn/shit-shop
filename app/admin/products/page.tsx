@@ -1,34 +1,11 @@
-export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
-import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { getCatalogProducts, type CatalogVariant } from "@/lib/catalog";
+
+export const dynamic = "force-dynamic";
 
 const ADMIN_COOKIE = "shit_shop_admin_session";
-
-type ProductVariantRow = {
-  id: string;
-  name: string;
-  sku: string;
-  price_eur: number | string | null;
-  stock_quantity: number | null;
-  is_active: boolean | null;
-};
-
-type ProductRow = {
-  id: string;
-  public_id: string | null;
-  slug: string;
-  name: string;
-  description: string | null;
-  short_description: string | null;
-  image_url: string | null;
-  is_active: boolean | null;
-  sort_order: number | null;
-  created_at: string;
-  updated_at: string | null;
-  variants: ProductVariantRow[];
-};
 
 function formatEUR(value: number | string | null | undefined) {
   if (value == null) return "—";
@@ -53,7 +30,7 @@ function formatDate(value: string | null) {
   }
 }
 
-function getPriceRange(variants: ProductVariantRow[]) {
+function getPriceRange(variants: CatalogVariant[]) {
   const prices = variants
     .map((variant) => Number(variant.price_eur))
     .filter((price) => Number.isFinite(price));
@@ -68,63 +45,25 @@ function getPriceRange(variants: ProductVariantRow[]) {
   return `${formatEUR(min)} – ${formatEUR(max)}`;
 }
 
-function getTotalStock(variants: ProductVariantRow[]) {
+function getTotalStock(variants: CatalogVariant[]) {
   return variants.reduce((total, variant) => {
     return total + Math.max(0, Number(variant.stock_quantity ?? 0));
   }, 0);
 }
 
-async function getAdminProducts() {
+async function requireAdminSession() {
   const cookieStore = await cookies();
   const hasAdminSession = cookieStore.get(ADMIN_COOKIE)?.value === "1";
 
   if (!hasAdminSession) {
     redirect("/admin/login");
   }
-
-  const supabase = getSupabaseAdminClient();
-
-  const { data, error } = await supabase
-    .from("products")
-    .select(
-      `
-      id,
-      public_id,
-      slug,
-      name,
-      description,
-      short_description,
-      image_url,
-      is_active,
-      sort_order,
-      created_at,
-      updated_at,
-      variants:product_variants (
-        id,
-        name,
-        sku,
-        price_eur,
-        stock_quantity,
-        is_active
-      )
-    `
-    )
-    .order("sort_order", { ascending: true })
-    .order("created_at", { ascending: true });
-
-  if (error) {
-    console.error("Admin products query error:", error);
-    return [];
-  }
-
-  return ((data ?? []) as ProductRow[]).map((product) => ({
-    ...product,
-    variants: product.variants ?? [],
-  }));
 }
 
 export default async function AdminProductsPage() {
-  const products = await getAdminProducts();
+  await requireAdminSession();
+
+  const products = await getCatalogProducts();
 
   return (
     <main style={{ padding: 30, maxWidth: 1200, margin: "0 auto" }}>
