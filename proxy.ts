@@ -9,6 +9,7 @@ export function proxy(req: NextRequest) {
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon") ||
     pathname.startsWith("/images") ||
+    pathname.startsWith("/products") ||
     pathname.startsWith("/public") ||
     pathname.includes(".");
 
@@ -20,11 +21,14 @@ export function proxy(req: NextRequest) {
     pathname === "/admin" ||
     pathname === "/admin/login" ||
     pathname.startsWith("/admin/orders") ||
+    pathname.startsWith("/admin/products") ||
     pathname.startsWith("/api/orders") ||
     pathname.startsWith("/api/logout") ||
     pathname.startsWith("/api/admin-auth/login") ||
     pathname.startsWith("/api/admin-auth/logout") ||
     pathname.startsWith("/api/admin/settings/toggle-maintenance") ||
+    pathname.startsWith("/api/admin/orders") ||
+    pathname.startsWith("/api/admin/products") ||
     pathname.startsWith("/api/stripe/webhook");
 
   if (isStaticAsset || isAlwaysAllowed) {
