@@ -19,6 +19,22 @@ type SessionWithExtras = Stripe.Checkout.Session & {
   } | null;
 };
 
+type OrderItem = {
+  qty?: number;
+  sku?: string;
+  productId?: string;
+  variantId?: string;
+  productName?: string;
+  variantName?: string;
+  lineTotalEUR?: number;
+  unitPriceEUR?: number;
+};
+
+type OrderRow = {
+  id: string;
+  stock_processed: boolean | null;
+};
+
 function getCustomFieldValue(
   fields: Stripe.Checkout.Session.CustomField[] | null | undefined,
   key: string
@@ -56,7 +72,7 @@ async function getUserIdByEmail(email: string | null): Promise<string | null> {
   return match?.id ?? null;
 }
 
-function readItemsJsonFromMetadata(session: Stripe.Checkout.Session) {
+function readItemsJsonFromMetadata(session: Stripe.Checkout.Session): OrderItem[] {
   const raw = session.metadata?.itemsJson;
   if (!raw) return [];
 
@@ -65,6 +81,93 @@ function readItemsJsonFromMetadata(session: Stripe.Checkout.Session) {
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
+  }
+}
+
+function normalizeStockItems(items: OrderItem[]) {
+  return items
+    .map((item) => {
+      const variantPublicId =
+        typeof item.variantId === "string" ? item.variantId : null;
+
+      const qty = Number(item.qty ?? 0);
+
+      if (!variantPublicId || !Number.isFinite(qty) || qty <= 0) {
+        return null;
+      }
+
+      return {
+        variantPublicId,
+        qty: Math.floor(qty),
+      };
+    })
+    .filter(
+      (item): item is { variantPublicId: string; qty: number } => item !== null
+    );
+}
+
+async function decrementStockForItems(orderId: string, items: OrderItem[]) {
+  const supabase = getSupabaseServerClient();
+  const stockItems = normalizeStockItems(items);
+
+  if (stockItems.length === 0) {
+    console.warn("No stock items found for order", { orderId });
+
+    const { error: markError } = await supabase
+      .from("orders")
+      .update({ stock_processed: true })
+      .eq("id", orderId);
+
+    if (markError) {
+      throw new Error(`Failed to mark stock processed: ${markError.message}`);
+    }
+
+    return;
+  }
+
+  for (const item of stockItems) {
+    const { data: variant, error: readError } = await supabase
+      .from("product_variants")
+      .select("id, public_id, stock_quantity")
+      .eq("public_id", item.variantPublicId)
+      .single();
+
+    if (readError || !variant) {
+      throw new Error(
+        `Variant not found for stock decrement: ${item.variantPublicId}`
+      );
+    }
+
+    const currentStock = Number(variant.stock_quantity ?? 0);
+    const nextStock = Math.max(0, currentStock - item.qty);
+
+    const { error: updateError } = await supabase
+      .from("product_variants")
+      .update({ stock_quantity: nextStock })
+      .eq("id", variant.id);
+
+    if (updateError) {
+      throw new Error(
+        `Failed to update stock for ${item.variantPublicId}: ${updateError.message}`
+      );
+    }
+
+    console.log("✅ stock decremented", {
+      orderId,
+      variantPublicId: item.variantPublicId,
+      qty: item.qty,
+      previousStock: currentStock,
+      nextStock,
+    });
+  }
+
+  const { error: markError } = await supabase
+    .from("orders")
+    .update({ stock_processed: true })
+    .eq("id", orderId);
+
+  if (markError) {
+    throw new Error(`Failed to mark stock processed: ${markError.message}`);
   }
 }
 
@@ -173,20 +276,56 @@ export async function POST(req: Request) {
         stripe_payload_json: JSON.parse(JSON.stringify(session)),
       };
 
-      const { error } = await supabase
+      const { error: upsertError } = await supabase
         .from("orders")
         .upsert(row, { onConflict: "stripe_session_id" });
 
-      if (error) {
-        console.error("Supabase insert error:", {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code,
+      if (upsertError) {
+        console.error("Supabase upsert error:", {
+          message: upsertError.message,
+          details: upsertError.details,
+          hint: upsertError.hint,
+          code: upsertError.code,
         });
 
-        return new Response(`Database insert error: ${error.message}`, {
+        return new Response(`Database upsert error: ${upsertError.message}`, {
           status: 500,
+        });
+      }
+
+      const { data: order, error: orderReadError } = await supabase
+        .from("orders")
+        .select("id, stock_processed")
+        .eq("stripe_session_id", session.id)
+        .single();
+
+      if (orderReadError || !order) {
+        console.error("Order read after upsert error:", orderReadError);
+
+        return new Response("Order read after upsert error", {
+          status: 500,
+        });
+      }
+
+      const orderRow = order as OrderRow;
+
+      if (!orderRow.stock_processed) {
+        try {
+          await decrementStockForItems(orderRow.id, itemsJson);
+        } catch (stockError) {
+          console.error("❌ stock decrement error:", stockError);
+
+          return new Response(
+            stockError instanceof Error
+              ? `Stock decrement error: ${stockError.message}`
+              : "Stock decrement error",
+            { status: 500 }
+          );
+        }
+      } else {
+        console.log("ℹ️ stock already processed", {
+          stripeSessionId: session.id,
+          orderId: orderRow.id,
         });
       }
 
