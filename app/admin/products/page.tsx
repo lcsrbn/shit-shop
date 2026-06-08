@@ -97,6 +97,22 @@ export default async function AdminProductsPage() {
 
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <Link
+            href="/admin/products/new"
+            style={{
+                display: "inline-block",
+                borderRadius: 999,
+                border: "1px solid rgba(0,0,0,.12)",
+                background: "#111",
+                padding: "10px 14px",
+                color: "#fff",
+                fontWeight: 800,
+                textDecoration: "none",
+            }}
+            >
+            New product
+          </Link>
+          
+          <Link
             href="/admin/orders"
             style={{
               display: "inline-block",
