@@ -56,7 +56,6 @@ export function ProductEditForm({ product }: { product: ProductRow }) {
     slug: product.slug,
     short_description: product.short_description ?? "",
     description: product.description ?? "",
-    image_url: product.image_url ?? "",
     sort_order: String(product.sort_order ?? 0),
     seo_title: product.seo_title ?? "",
     seo_description: product.seo_description ?? "",
@@ -193,20 +192,6 @@ export function ProductEditForm({ product }: { product: ProductRow }) {
                 }))
               }
               rows={4}
-              style={fieldStyle()}
-            />
-          </label>
-
-          <label style={labelStyle()}>
-            Image URL
-            <input
-              value={productState.image_url}
-              onChange={(e) =>
-                setProductState((prev) => ({
-                  ...prev,
-                  image_url: e.target.value,
-                }))
-              }
               style={fieldStyle()}
             />
           </label>
