@@ -1,5 +1,19 @@
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 
+export type ProductMediaType = "main" | "detail" | "sprite";
+
+export type CatalogMedia = {
+  id: string;
+  product_id: string;
+  type: ProductMediaType;
+  url: string;
+  alt: string | null;
+  sort_order: number;
+  metadata: Record<string, unknown> | null;
+  is_active: boolean | null;
+  created_at: string;
+};
+
 export type CatalogVariant = {
   id: string;
   product_id: string;
@@ -27,6 +41,7 @@ export type CatalogProduct = {
   created_at: string;
   updated_at: string | null;
   variants: CatalogVariant[];
+  media: CatalogMedia[];
 };
 
 export async function getCatalogProducts(): Promise<CatalogProduct[]> {
@@ -58,6 +73,17 @@ export async function getCatalogProducts(): Promise<CatalogProduct[]> {
         stock_quantity,
         is_active,
         created_at
+      ),
+      media:product_media (
+        id,
+        product_id,
+        type,
+        url,
+        alt,
+        sort_order,
+        metadata,
+        is_active,
+        created_at
       )
     `)
     .order("sort_order", { ascending: true })
@@ -71,6 +97,7 @@ export async function getCatalogProducts(): Promise<CatalogProduct[]> {
   return ((data ?? []) as CatalogProduct[]).map((product) => ({
     ...product,
     variants: product.variants ?? [],
+    media: (product.media ?? []).filter((item) => item.is_active),
   }));
 }
 
@@ -105,14 +132,23 @@ export async function getCatalogProductById(
         stock_quantity,
         is_active,
         created_at
+      ),
+      media:product_media (
+        id,
+        product_id,
+        type,
+        url,
+        alt,
+        sort_order,
+        metadata,
+        is_active,
+        created_at
       )
     `)
     .eq("id", id)
     .single();
 
-  if (error || !data) {
-    return null;
-  }
+  if (error || !data) return null;
 
   const product = data as CatalogProduct;
 
@@ -121,5 +157,8 @@ export async function getCatalogProductById(
     variants: (product.variants ?? []).sort((a, b) =>
       a.name.localeCompare(b.name)
     ),
+    media: (product.media ?? [])
+      .filter((item) => item.is_active)
+      .sort((a, b) => a.sort_order - b.sort_order),
   };
 }
