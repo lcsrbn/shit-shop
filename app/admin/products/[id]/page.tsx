@@ -1,96 +1,36 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { cookies } from "next/headers";
-import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { getCatalogProductById } from "@/lib/catalog";
 import { ProductEditForm } from "@/components/admin/ProductEditForm";
+import { ProductMediaManager } from "@/components/admin/ProductMediaManager";
 
 export const dynamic = "force-dynamic";
 
 const ADMIN_COOKIE = "shit_shop_admin_session";
 
-type ProductVariantRow = {
-  id: string;
-  public_id: string | null;
-  name: string;
-  sku: string;
-  price_eur: number | string | null;
-  stock_quantity: number | null;
-  is_active: boolean | null;
-};
-
-type ProductRow = {
-  id: string;
-  public_id: string | null;
-  slug: string;
-  name: string;
-  description: string | null;
-  short_description: string | null;
-  image_url: string | null;
-  is_active: boolean | null;
-  sort_order: number | null;
-  seo_title: string | null;
-  seo_description: string | null;
-  variants: ProductVariantRow[];
-};
-
 type PageProps = {
   params: Promise<{ id: string }>;
 };
 
-async function getProduct(id: string): Promise<ProductRow> {
+async function requireAdminSession() {
   const cookieStore = await cookies();
   const hasAdminSession = cookieStore.get(ADMIN_COOKIE)?.value === "1";
 
   if (!hasAdminSession) {
     redirect("/admin/login");
   }
-
-  const supabase = getSupabaseAdminClient();
-
-  const { data, error } = await supabase
-    .from("products")
-    .select(
-      `
-      id,
-      public_id,
-      slug,
-      name,
-      description,
-      short_description,
-      image_url,
-      is_active,
-      sort_order,
-      seo_title,
-      seo_description,
-      variants:product_variants (
-        id,
-        public_id,
-        name,
-        sku,
-        price_eur,
-        stock_quantity,
-        is_active
-      )
-    `
-    )
-    .eq("id", id)
-    .single();
-
-  if (error || !data) {
-    notFound();
-  }
-
-  return {
-    ...(data as ProductRow),
-    variants: ((data as ProductRow).variants ?? []).sort((a, b) =>
-      a.name.localeCompare(b.name)
-    ),
-  };
 }
 
 export default async function AdminProductDetailPage({ params }: PageProps) {
+  await requireAdminSession();
+
   const { id } = await params;
-  const product = await getProduct(id);
+  const product = await getCatalogProductById(id);
+
+  if (!product) {
+    notFound();
+  }
 
   return (
     <main style={{ padding: 30, maxWidth: 980, margin: "0 auto" }}>
@@ -141,6 +81,10 @@ export default async function AdminProductDetailPage({ params }: PageProps) {
       </div>
 
       <ProductEditForm product={product} />
+
+      <div style={{ marginTop: 18 }}>
+        <ProductMediaManager productId={product.id} initialMedia={product.media} />
+      </div>
     </main>
   );
 }
