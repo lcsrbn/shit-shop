@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { getCatalogProductById } from "@/lib/catalog";
 import { ProductEditForm } from "@/components/admin/ProductEditForm";
 import { ProductMediaManager } from "@/components/admin/ProductMediaManager";
+import { ProductActions } from "@/components/admin/ProductActions";
 
 export const dynamic = "force-dynamic";
 
@@ -63,21 +64,25 @@ export default async function AdminProductDetailPage({ params }: PageProps) {
           </p>
         </div>
 
-        <Link
-          href="/admin/products"
-          style={{
-            display: "inline-block",
-            borderRadius: 999,
-            border: "1px solid rgba(0,0,0,.12)",
-            background: "#fff",
-            padding: "10px 14px",
-            color: "#111",
-            fontWeight: 800,
-            textDecoration: "none",
-          }}
-        >
-          ← Back to products
-        </Link>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <ProductActions product={product} />
+
+          <Link
+            href="/admin/products"
+            style={{
+              display: "inline-block",
+              borderRadius: 999,
+              border: "1px solid rgba(0,0,0,.12)",
+              background: "#fff",
+              padding: "10px 14px",
+              color: "#111",
+              fontWeight: 800,
+              textDecoration: "none",
+            }}
+          >
+            ← Back to products
+          </Link>
+        </div>
       </div>
 
       <ProductEditForm product={product} />
