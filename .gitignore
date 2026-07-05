@@ -44,3 +44,6 @@ next-env.d.ts
 
 # roadmap
 roadmap/
+
+# local project notes
+CLAUDE.local.md
