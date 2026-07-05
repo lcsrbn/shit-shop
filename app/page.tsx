@@ -1,47 +1,37 @@
-import { connection } from "next/server";
-import FloatingProducts from "@/components/FloatingProducts";
+import type { Metadata } from "next";
+import { Press_Start_2P } from "next/font/google";
 import { getAllActiveProductsForUI } from "@/lib/products-db";
+import WorldGame from "@/components/world/WorldGame";
+
+const pixelFont = Press_Start_2P({ weight: "400", subsets: ["latin"] });
+
+export const metadata: Metadata = {
+  title: "shit-shop",
+  description: "A habitat for nostalgia.",
+};
 
 export default async function Page() {
-  await connection();
-
   const products = await getAllActiveProductsForUI();
 
+  // The OLD HOODIE in the back room maps to a real product so it can
+  // cross into the other plane (the cart). Prefer an actual hoodie.
+  const match =
+    products.find((p) => /hoodie/i.test(`${p.name} ${p.slug}`)) ??
+    products[0] ??
+    null;
+
+  const product = match
+    ? {
+        id: match.id,
+        variantId: match.defaultVariantId,
+        name: match.name,
+        priceEUR: match.priceEUR,
+      }
+    : null;
+
   return (
-    <main style={{ padding: 30, maxWidth: 1100, margin: "0 auto" }}>
-      <header
-        style={{
-          display: "flex",
-          alignItems: "flex-end",
-          justifyContent: "space-between",
-          gap: 16,
-        }}
-      >
-        <div>
-          <div style={{ fontSize: 13, color: "rgba(0,0,0,.55)" }}>
-            shit-shop
-          </div>
-
-          <h1
-            style={{
-              margin: "6px 0 0",
-              fontSize: 34,
-              fontWeight: 950,
-              letterSpacing: "-0.03em",
-            }}
-          >
-            shit-shop
-          </h1>
-        </div>
-
-        <div style={{ fontSize: 13, color: "rgba(0,0,0,.55)" }}>
-          click = open · click card = flip
-        </div>
-      </header>
-
-      <div style={{ marginTop: 18 }}>
-        <FloatingProducts initialProducts={products} />
-      </div>
-    </main>
+    <div className={pixelFont.className}>
+      <WorldGame product={product} />
+    </div>
   );
 }

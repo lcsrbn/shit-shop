@@ -15,7 +15,10 @@ import {
 import { isRadioOn, startRadio, stopRadio } from "@/lib/world/audio";
 
 const STORAGE_KEY = "shit_shop_world_v1";
-const STEP_MS = 140;
+const STEP_MS = 120;
+
+// Fill the viewport while keeping the room's aspect ratio.
+const FRAME_WIDTH = `min(1500px, 100%, calc((100vh - 170px) * ${GRID_W / GRID_H}))`;
 
 type Pt = { x: number; y: number };
 
@@ -540,7 +543,8 @@ export default function WorldGame({ product }: { product: WorldProduct }) {
       top: `${y * tileSizeH}%`,
       width: `${tileSizeW}%`,
       height: `${tileSizeH}%`,
-      background: urls ? `url(${urls[kind]})` : fallback,
+      backgroundColor: fallback,
+      backgroundImage: urls ? `url(${urls[kind]})` : undefined,
       backgroundSize: "100% 100%",
       imageRendering: "pixelated",
     };
@@ -572,7 +576,7 @@ export default function WorldGame({ product }: { product: WorldProduct }) {
 
       <div
         style={{
-          width: "min(920px, 100%)",
+          width: FRAME_WIDTH,
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
@@ -595,8 +599,12 @@ export default function WorldGame({ product }: { product: WorldProduct }) {
             Inventory{inv.length > 0 ? ` (${inv.length})` : ""}
           </button>
 
-          <Link href="/" style={hudButtonStyle}>
+          <Link href="/checkout" style={hudButtonStyle}>
             Shop{cart.ready && cart.count > 0 ? ` (${cart.count})` : ""}
+          </Link>
+
+          <Link href="/login" style={hudButtonStyle}>
+            Login
           </Link>
         </div>
       </div>
@@ -604,7 +612,7 @@ export default function WorldGame({ product }: { product: WorldProduct }) {
       <div
         style={{
           position: "relative",
-          width: "min(920px, 100%)",
+          width: FRAME_WIDTH,
           aspectRatio: `${GRID_W} / ${GRID_H}`,
           border: `4px solid ${PALETTE.dark}`,
           background: PALETTE.void,
