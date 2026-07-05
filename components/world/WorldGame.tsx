@@ -13,6 +13,9 @@ import {
   type DoorDef,
 } from "@/lib/world/rooms";
 import { isRadioOn, startRadio, stopRadio } from "@/lib/world/audio";
+import TerminalShop, {
+  type TerminalProduct,
+} from "@/components/world/TerminalShop";
 
 const STORAGE_KEY = "shit_shop_world_v1";
 const STEP_MS = 120;
@@ -180,7 +183,13 @@ const hudButtonStyle: React.CSSProperties = {
   display: "inline-block",
 };
 
-export default function WorldGame({ product }: { product: WorldProduct }) {
+export default function WorldGame({
+  product,
+  catalog,
+}: {
+  product: WorldProduct;
+  catalog: TerminalProduct[];
+}) {
   const cart = useCart();
 
   const [roomId, setRoomId] = useState(START_ROOM);
@@ -194,6 +203,7 @@ export default function WorldGame({ product }: { product: WorldProduct }) {
   const [panel, setPanel] = useState<PanelState>(null);
   const [radioOn, setRadioOn] = useState(false);
   const [fading, setFading] = useState(false);
+  const [terminalOpen, setTerminalOpen] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [urls, setUrls] = useState<Record<SpriteName, string> | null>(null);
 
@@ -305,7 +315,7 @@ export default function WorldGame({ product }: { product: WorldProduct }) {
   }
 
   function handleCellClick(x: number, y: number) {
-    if (panel || fading) return;
+    if (panel || fading || terminalOpen) return;
 
     const obj = objectAt(x, y);
     const door = room.doors.get(key(x, y));
@@ -354,6 +364,8 @@ export default function WorldGame({ product }: { product: WorldProduct }) {
     function onKey(e: KeyboardEvent) {
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
+
+      if (terminalOpen) return;
 
       if (e.key === "Escape") {
         setPanel(null);
@@ -482,20 +494,16 @@ export default function WorldGame({ product }: { product: WorldProduct }) {
         };
 
       case "terminal":
-        if (stage === 1) {
-          return {
-            title: def.name,
-            text: "Somewhere inside, a fan spins up.\nNot today.",
-            choices: [{ label: "Step back", act: () => setPanel(null) }],
-          };
-        }
         return {
           title: def.name,
-          text: base,
+          text: `${base}\nSomewhere inside, a fan spins up.`,
           choices: [
             {
-              label: "Touch the screen",
-              act: () => setPanel({ type: "object", objectId, stage: 1 }),
+              label: "Use the terminal",
+              act: () => {
+                setPanel(null);
+                setTerminalOpen(true);
+              },
             },
             { label: "Step back", act: () => setPanel(null) },
           ],
@@ -702,6 +710,13 @@ export default function WorldGame({ product }: { product: WorldProduct }) {
             />
           )}
         </div>
+
+        {terminalOpen && (
+          <TerminalShop
+            catalog={catalog}
+            onClose={() => setTerminalOpen(false)}
+          />
+        )}
 
         {panel && (
           <div

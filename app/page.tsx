@@ -29,9 +29,24 @@ export default async function Page() {
       }
     : null;
 
+  // Catalog for the in-game terminal shop.
+  const catalog = products.map((p) => ({
+    id: p.id,
+    name: p.name,
+    description: p.description ?? "",
+    priceEUR: p.priceEUR,
+    defaultVariantId: p.defaultVariantId,
+    variants: p.variants.map((v) => ({
+      id: v.id,
+      name: v.name,
+      priceEUR: v.priceEUR,
+      stock: v.stock,
+    })),
+  }));
+
   return (
     <div className={pixelFont.className}>
-      <WorldGame product={product} />
+      <WorldGame product={product} catalog={catalog} />
     </div>
   );
 }
