@@ -30,7 +30,7 @@ export async function POST(req: Request) {
     });
   }
 
-  const response = NextResponse.redirect(new URL("/admin/orders", req.url), {
+  const response = NextResponse.redirect(new URL("/admin", req.url), {
     status: 303,
   });
 

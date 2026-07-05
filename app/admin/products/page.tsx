@@ -113,7 +113,7 @@ export default async function AdminProductsPage() {
           </Link>
           
           <Link
-            href="/admin/orders"
+            href="/admin"
             style={{
               display: "inline-block",
               borderRadius: 999,
@@ -125,7 +125,7 @@ export default async function AdminProductsPage() {
               textDecoration: "none",
             }}
           >
-            Orders
+            ← Dashboard
           </Link>
 
           <Link

@@ -57,35 +57,20 @@ async function getAdminData() {
 
   const supabase = getSupabaseAdminClient();
 
-  const [
-    { data: ordersData, error: ordersError },
-    { data: settingsData, error: settingsError },
-  ] = await Promise.all([
-    supabase
-      .from("orders")
-      .select(
-        "id, created_at, status, order_id, user_id, customer_email, customer_name, amount_total, currency"
-      )
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("app_settings")
-      .select("value")
-      .eq("key", "maintenance_mode")
-      .single(),
-  ]);
+  const { data: ordersData, error: ordersError } = await supabase
+    .from("orders")
+    .select(
+      "id, created_at, status, order_id, user_id, customer_email, customer_name, amount_total, currency"
+    )
+    .order("created_at", { ascending: false });
 
   if (ordersError) {
     console.error("Admin orders query error:", ordersError);
   }
 
-  if (settingsError) {
-    console.error("Admin settings query error:", settingsError);
-  }
-
   return {
     adminLabel: "Admin session",
     orders: (ordersData as OrderRow[]) ?? [],
-    maintenanceMode: settingsData?.value === true,
   };
 }
 
@@ -96,7 +81,7 @@ export default async function AdminOrdersPage({
   const statusFilter = resolvedSearchParams.status ?? "all";
   const query = (resolvedSearchParams.q ?? "").trim().toLowerCase();
 
-  const { adminLabel, orders, maintenanceMode } = await getAdminData();
+  const { adminLabel, orders } = await getAdminData();
 
   const filteredOrders = orders.filter((order) => {
     const matchesStatus =
@@ -145,46 +130,24 @@ export default async function AdminOrdersPage({
           <p style={{ marginTop: 10, opacity: 0.75 }}>
             Signed in as: {adminLabel}
           </p>
-
-          <p style={{ marginTop: 6, opacity: 0.75 }}>
-            Maintenance: <b>{maintenanceMode ? "ON" : "OFF"}</b>
-          </p>
         </div>
 
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <form action="/api/admin/settings/toggle-maintenance" method="post">
-            <button
-              type="submit"
-              style={{
-                borderRadius: 999,
-                border: "1px solid rgba(0,0,0,.12)",
-                background: "#fff",
-                padding: "10px 14px",
-                color: "#111",
-                fontWeight: 800,
-                cursor: "pointer",
-              }}
-            >
-              {maintenanceMode ? "Turn maintenance off" : "Turn maintenance on"}
-            </button>
-          </form>
-
-          <form action="/api/admin-auth/logout" method="post">
-            <button
-              type="submit"
-              style={{
-                borderRadius: 999,
-                border: "1px solid rgba(0,0,0,.12)",
-                background: "#fff",
-                padding: "10px 14px",
-                color: "#111",
-                fontWeight: 800,
-                cursor: "pointer",
-              }}
-            >
-              Logout admin
-            </button>
-          </form>
+          <Link
+            href="/admin"
+            style={{
+              display: "inline-block",
+              borderRadius: 999,
+              border: "1px solid rgba(0,0,0,.12)",
+              background: "#fff",
+              padding: "10px 14px",
+              color: "#111",
+              fontWeight: 800,
+              textDecoration: "none",
+            }}
+          >
+            ← Dashboard
+          </Link>
         </div>
       </div>
 

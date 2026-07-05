@@ -40,7 +40,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: writeError.message }, { status: 500 });
     }
 
-    return NextResponse.redirect(new URL("/admin/orders", req.url), {
+    return NextResponse.redirect(new URL("/admin", req.url), {
       status: 303,
     });
   } catch (err) {
