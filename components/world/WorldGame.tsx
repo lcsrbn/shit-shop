@@ -3,14 +3,24 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useCart } from "@/lib/cart";
-import { PALETTE, SPRITES, spriteToDataUrl, type SpriteName } from "@/lib/world/sprites";
 import {
-  GRID_H,
-  GRID_W,
+  PALETTE,
+  SPRITES,
+  roomToDataUrl,
+  spriteToDataUrl,
+  starfieldToDataUrl,
+  type SpriteName,
+} from "@/lib/world/sprites";
+import {
   OBJECTS,
+  PARSED,
   ROOMS,
   START_ROOM,
+  roomFallback,
+  tileKey,
   type DoorDef,
+  type ParsedRoom,
+  type Pt,
 } from "@/lib/world/rooms";
 import { isRadioOn, startRadio, stopRadio } from "@/lib/world/audio";
 import TerminalShop, {
@@ -20,10 +30,12 @@ import TerminalShop, {
 const STORAGE_KEY = "shit_shop_world_v1";
 const STEP_MS = 120;
 
-// Fill the viewport while keeping the room's aspect ratio.
-const FRAME_WIDTH = `min(1500px, 100%, calc((100vh - 170px) * ${GRID_W / GRID_H}))`;
+// The camera window, in tiles. Rooms can be much larger; the view scrolls.
+const VIEW_W = 18;
+const VIEW_H = 11;
 
-type Pt = { x: number; y: number };
+// Fill the viewport while keeping the camera's aspect ratio.
+const FRAME_WIDTH = `min(1500px, 100%, calc((100vh - 170px) * ${VIEW_W / VIEW_H}))`;
 
 type WorldProduct = {
   id: string;
@@ -32,86 +44,32 @@ type WorldProduct = {
   priceEUR: number;
 } | null;
 
-type TileKind = "floor" | "wall" | "door";
-
-type ParsedRoom = {
-  tiles: TileKind[][];
-  objects: Array<{ id: string; x: number; y: number }>;
-  doors: Map<string, DoorDef>;
-  start: Pt | null;
-};
-
 type PanelState =
   | { type: "object"; objectId: string; stage: number }
   | { type: "inventory" }
   | { type: "message"; title: string; text: string }
   | null;
 
-function key(x: number, y: number) {
-  return `${x},${y}`;
-}
-
-function parseRoom(roomId: string): ParsedRoom {
-  const room = ROOMS[roomId];
-  const tiles: TileKind[][] = [];
-  const objects: ParsedRoom["objects"] = [];
-  const doors = new Map<string, DoorDef>();
-  let start: Pt | null = null;
-  let doorIndex = 0;
-
-  for (let y = 0; y < GRID_H; y++) {
-    const row: TileKind[] = [];
-
-    for (let x = 0; x < GRID_W; x++) {
-      const ch = room.grid[y][x];
-
-      if (ch === "#") {
-        row.push("wall");
-      } else if (ch === "D") {
-        row.push("door");
-        doors.set(key(x, y), room.doors[doorIndex]);
-        doorIndex += 1;
-      } else {
-        row.push("floor");
-
-        if (ch === "P") {
-          start = { x, y };
-        } else if (ch !== ".") {
-          const objectId = room.objectChars[ch];
-          if (objectId) objects.push({ id: objectId, x, y });
-        }
-      }
-    }
-
-    tiles.push(row);
-  }
-
-  return { tiles, objects, doors, start };
-}
-
-const PARSED: Record<string, ParsedRoom> = Object.fromEntries(
-  Object.keys(ROOMS).map((id) => [id, parseRoom(id)])
-);
-
 function bfsPath(
   fromPt: Pt,
   targets: Pt[],
+  room: ParsedRoom,
   walkable: (x: number, y: number) => boolean
 ): Pt[] | null {
-  const targetKeys = new Set(targets.map((t) => key(t.x, t.y)));
+  const targetKeys = new Set(targets.map((t) => tileKey(t.x, t.y)));
   const parent = new Map<string, string | null>();
   const queue: Pt[] = [fromPt];
-  parent.set(key(fromPt.x, fromPt.y), null);
+  parent.set(tileKey(fromPt.x, fromPt.y), null);
 
   while (queue.length > 0) {
     const cur = queue.shift() as Pt;
-    const curKey = key(cur.x, cur.y);
+    const curKey = tileKey(cur.x, cur.y);
 
     if (targetKeys.has(curKey)) {
       const path: Pt[] = [];
       let k: string | null = curKey;
 
-      while (k && k !== key(fromPt.x, fromPt.y)) {
+      while (k && k !== tileKey(fromPt.x, fromPt.y)) {
         const [px, py] = k.split(",").map(Number);
         path.unshift({ x: px, y: py });
         k = parent.get(k) ?? null;
@@ -128,10 +86,10 @@ function bfsPath(
     ] as const) {
       const nx = cur.x + dx;
       const ny = cur.y + dy;
-      const nk = key(nx, ny);
+      const nk = tileKey(nx, ny);
 
       if (parent.has(nk)) continue;
-      if (nx < 0 || ny < 0 || nx >= GRID_W || ny >= GRID_H) continue;
+      if (nx < 0 || ny < 0 || nx >= room.w || ny >= room.h) continue;
       if (!walkable(nx, ny) && !targetKeys.has(nk)) continue;
 
       parent.set(nk, curKey);
@@ -140,6 +98,12 @@ function bfsPath(
   }
 
   return null;
+}
+
+// Center the camera on the player, clamped to the land; center small rooms.
+function cameraAxis(p: number, view: number, size: number): number {
+  if (size <= view) return (size - view) / 2;
+  return Math.min(Math.max(p + 0.5 - view / 2, 0), size - view);
 }
 
 function TypeText({ text }: { text: string }) {
@@ -193,9 +157,7 @@ export default function WorldGame({
   const cart = useCart();
 
   const [roomId, setRoomId] = useState(START_ROOM);
-  const [pos, setPos] = useState<Pt>(
-    () => PARSED[START_ROOM].start ?? { x: 1, y: 1 }
-  );
+  const [pos, setPos] = useState<Pt>(() => roomFallback(PARSED[START_ROOM]));
   const [path, setPath] = useState<Pt[]>([]);
   const [taken, setTaken] = useState<string[]>([]);
   const [inv, setInv] = useState<string[]>([]);
@@ -206,6 +168,8 @@ export default function WorldGame({
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [urls, setUrls] = useState<Record<SpriteName, string> | null>(null);
+  const [roomUrls, setRoomUrls] = useState<Record<string, string> | null>(null);
+  const [starUrl, setStarUrl] = useState<string | null>(null);
 
   const pendingRef = useRef<
     | { type: "object"; objectId: string }
@@ -226,13 +190,24 @@ export default function WorldGame({
   const walkable = (x: number, y: number) =>
     room.tiles[y]?.[x] === "floor" && !objectAt(x, y);
 
-  // Render sprites to data URLs once, on the client.
+  // Render sprites and room composites to data URLs once, on the client.
   useEffect(() => {
     const entries = Object.entries(SPRITES).map(([name, rows]) => [
       name,
       spriteToDataUrl(rows),
     ]);
     setUrls(Object.fromEntries(entries));
+
+    setRoomUrls(
+      Object.fromEntries(
+        Object.entries(PARSED).map(([id, parsed]) => [
+          id,
+          roomToDataUrl(parsed.tiles),
+        ])
+      )
+    );
+
+    setStarUrl(starfieldToDataUrl());
   }, []);
 
   // Load saved state.
@@ -244,11 +219,14 @@ export default function WorldGame({
 
         if (typeof saved.roomId === "string" && PARSED[saved.roomId]) {
           setRoomId(saved.roomId);
+
           if (
             saved.pos &&
             PARSED[saved.roomId].tiles[saved.pos.y]?.[saved.pos.x] === "floor"
           ) {
             setPos(saved.pos);
+          } else {
+            setPos(roomFallback(PARSED[saved.roomId]));
           }
         }
 
@@ -318,7 +296,7 @@ export default function WorldGame({
     if (panel || fading || terminalOpen) return;
 
     const obj = objectAt(x, y);
-    const door = room.doors.get(key(x, y));
+    const door = room.doors.get(tileKey(x, y));
     const target: Pt = { x, y };
 
     if (obj || door) {
@@ -328,7 +306,7 @@ export default function WorldGame({
         return;
       }
 
-      const found = bfsPath(pos, [target], walkable);
+      const found = bfsPath(pos, [target], room, walkable);
       if (!found || found.length === 0) return;
 
       // Stop on the cell before the target, then act.
@@ -355,8 +333,15 @@ export default function WorldGame({
     if (!walkable(x, y)) return;
 
     pendingRef.current = null;
-    const found = bfsPath(pos, [target], walkable);
+    const found = bfsPath(pos, [target], room, walkable);
     if (found) setPath(found);
+  }
+
+  function handleWorldClick(e: React.MouseEvent<HTMLDivElement>) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = Math.floor(((e.clientX - rect.left) / rect.width) * room.w);
+    const y = Math.floor(((e.clientY - rect.top) / rect.height) * room.h);
+    handleCellClick(x, y);
   }
 
   // Keyboard controls.
@@ -406,7 +391,7 @@ export default function WorldGame({
         return;
       }
 
-      const door = room.doors.get(key(nx, ny));
+      const door = room.doors.get(tileKey(nx, ny));
       if (door) {
         goThroughDoor(door);
         return;
@@ -470,7 +455,7 @@ export default function WorldGame({
 
   function objectPanelContent(objectId: string, stage: number) {
     const def = OBJECTS[objectId];
-    const base = def.lines.join("\n");
+    const base = (def.lines ?? []).join("\n");
 
     switch (def.kind) {
       case "product":
@@ -529,6 +514,25 @@ export default function WorldGame({
           ],
         };
 
+      case "npc": {
+        const stageDef = def.dialog?.[stage] ?? {
+          text: base,
+          choices: [{ label: "Leave it" }],
+        };
+
+        return {
+          title: def.name,
+          text: stageDef.text,
+          choices: stageDef.choices.map((choice) => ({
+            label: choice.label,
+            act: () =>
+              choice.next === undefined
+                ? setPanel(null)
+                : setPanel({ type: "object", objectId, stage: choice.next }),
+          })),
+        };
+      }
+
       default:
         return {
           title: def.name,
@@ -538,25 +542,11 @@ export default function WorldGame({
     }
   }
 
-  const tileSizeW = 100 / GRID_W;
-  const tileSizeH = 100 / GRID_H;
+  const camX = cameraAxis(pos.x, VIEW_W, room.w);
+  const camY = cameraAxis(pos.y, VIEW_H, room.h);
 
-  function tileStyle(x: number, y: number, kind: TileKind): React.CSSProperties {
-    const fallback =
-      kind === "wall" ? PALETTE.wall : kind === "door" ? PALETTE.void : PALETTE.floor;
-
-    return {
-      position: "absolute",
-      left: `${x * tileSizeW}%`,
-      top: `${y * tileSizeH}%`,
-      width: `${tileSizeW}%`,
-      height: `${tileSizeH}%`,
-      backgroundColor: fallback,
-      backgroundImage: urls ? `url(${urls[kind]})` : undefined,
-      backgroundSize: "100% 100%",
-      imageRendering: "pixelated",
-    };
-  }
+  const cellW = 100 / room.w;
+  const cellH = 100 / room.h;
 
   return (
     <div
@@ -579,6 +569,16 @@ export default function WorldGame({
         @keyframes radio-glow {
           0%, 100% { opacity: .25; }
           50% { opacity: .6; }
+        }
+        @keyframes npc-breathe {
+          0%, 100% { transform: scaleY(1); }
+          50% { transform: scaleY(.95) scaleX(1.03); }
+        }
+        @keyframes room-caption {
+          0% { opacity: 0; }
+          18% { opacity: 1; }
+          70% { opacity: 1; }
+          100% { opacity: 0; }
         }
       `}</style>
 
@@ -621,94 +621,145 @@ export default function WorldGame({
         style={{
           position: "relative",
           width: FRAME_WIDTH,
-          aspectRatio: `${GRID_W} / ${GRID_H}`,
+          aspectRatio: `${VIEW_W} / ${VIEW_H}`,
           border: `4px solid ${PALETTE.dark}`,
-          background: PALETTE.void,
+          backgroundColor: PALETTE.void,
+          backgroundImage: starUrl ? `url(${starUrl})` : undefined,
+          imageRendering: "pixelated",
           overflow: "hidden",
           opacity: fading ? 0 : 1,
           transition: "opacity .25s ease",
           userSelect: "none",
         }}
       >
-        {room.tiles.map((row, y) =>
-          row.map((kind, x) => (
+        {/* The land: one composite image per room, scrolled by the camera. */}
+        <div
+          key={roomId}
+          onClick={handleWorldClick}
+          style={{
+            position: "absolute",
+            width: `${(room.w / VIEW_W) * 100}%`,
+            height: `${(room.h / VIEW_H) * 100}%`,
+            transform: `translate(${(-camX / room.w) * 100}%, ${
+              (-camY / room.h) * 100
+            }%)`,
+            transition: `transform ${STEP_MS}ms linear`,
+            backgroundImage: roomUrls?.[roomId]
+              ? `url(${roomUrls[roomId]})`
+              : undefined,
+            backgroundSize: "100% 100%",
+            imageRendering: "pixelated",
+            cursor: "pointer",
+          }}
+        >
+          {visibleObjects.map((o) => (
             <div
-              key={key(x, y)}
-              onClick={() => handleCellClick(x, y)}
-              style={{ ...tileStyle(x, y, kind), cursor: "pointer" }}
-            />
-          ))
-        )}
+              key={`${o.id}-${tileKey(o.x, o.y)}`}
+              style={{
+                position: "absolute",
+                left: `${o.x * cellW}%`,
+                top: `${o.y * cellH}%`,
+                width: `${cellW}%`,
+                height: `${cellH}%`,
+                pointerEvents: "none",
+              }}
+            >
+              {o.id === "radio" && radioOn && (
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: "-40%",
+                    background: `radial-gradient(circle, ${PALETTE.gold}55, transparent 70%)`,
+                    animation: "radio-glow 2.4s ease-in-out infinite",
+                  }}
+                />
+              )}
+              {urls && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={urls[OBJECTS[o.id].sprite]}
+                  alt={OBJECTS[o.id].name}
+                  draggable={false}
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    width: "100%",
+                    height: "100%",
+                    imageRendering: "pixelated",
+                    ...(OBJECTS[o.id].kind === "npc"
+                      ? {
+                          animation: "npc-breathe 2.8s ease-in-out infinite",
+                          transformOrigin: "50% 100%",
+                        }
+                      : null),
+                  }}
+                />
+              )}
+            </div>
+          ))}
 
-        {visibleObjects.map((o) => (
           <div
-            key={`${o.id}-${key(o.x, o.y)}`}
-            onClick={() => handleCellClick(o.x, o.y)}
             style={{
               position: "absolute",
-              left: `${o.x * tileSizeW}%`,
-              top: `${o.y * tileSizeH}%`,
-              width: `${tileSizeW}%`,
-              height: `${tileSizeH}%`,
-              cursor: "pointer",
+              left: `${pos.x * cellW}%`,
+              top: `${pos.y * cellH}%`,
+              width: `${cellW}%`,
+              height: `${cellH}%`,
+              transition: `left ${STEP_MS}ms linear, top ${STEP_MS}ms linear`,
+              pointerEvents: "none",
+              zIndex: 2,
             }}
           >
-            {o.id === "radio" && radioOn && (
-              <div
-                style={{
-                  position: "absolute",
-                  inset: "-40%",
-                  background: `radial-gradient(circle, ${PALETTE.gold}55, transparent 70%)`,
-                  animation: "radio-glow 2.4s ease-in-out infinite",
-                  pointerEvents: "none",
-                }}
-              />
-            )}
             {urls && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={urls[OBJECTS[o.id].sprite]}
-                alt={OBJECTS[o.id].name}
+                src={urls.ghost}
+                alt="you"
                 draggable={false}
                 style={{
-                  position: "absolute",
-                  inset: 0,
                   width: "100%",
                   height: "100%",
                   imageRendering: "pixelated",
+                  opacity: 0.92,
+                  animation: "ghost-float 2.2s ease-in-out infinite",
                 }}
               />
             )}
           </div>
-        ))}
+        </div>
 
+        {/* Crepuscular vignette over the whole view. */}
         <div
           style={{
             position: "absolute",
-            left: `${pos.x * tileSizeW}%`,
-            top: `${pos.y * tileSizeH}%`,
-            width: `${tileSizeW}%`,
-            height: `${tileSizeH}%`,
-            transition: `left ${STEP_MS}ms linear, top ${STEP_MS}ms linear`,
+            inset: 0,
+            background:
+              "radial-gradient(120% 120% at 50% 45%, transparent 55%, rgba(12,10,20,.6) 100%)",
             pointerEvents: "none",
             zIndex: 2,
           }}
+        />
+
+        {/* Room title, fading in and out on entry. */}
+        <div
+          key={`caption-${roomId}`}
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            top: "36%",
+            textAlign: "center",
+            fontSize: 15,
+            letterSpacing: 4,
+            color: PALETTE.ghost,
+            textShadow: `0 0 12px ${PALETTE.void}`,
+            opacity: 0,
+            animation: "room-caption 2.8s ease forwards",
+            pointerEvents: "none",
+            zIndex: 3,
+          }}
         >
-          {urls && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={urls.ghost}
-              alt="you"
-              draggable={false}
-              style={{
-                width: "100%",
-                height: "100%",
-                imageRendering: "pixelated",
-                opacity: 0.92,
-                animation: "ghost-float 2.2s ease-in-out infinite",
-              }}
-            />
-          )}
+          {ROOMS[roomId].name}
         </div>
 
         {terminalOpen && (
@@ -728,7 +779,7 @@ export default function WorldGame({
               background: "rgba(18,16,29,.95)",
               borderTop: `3px solid ${PALETTE.mauve}`,
               padding: "14px 16px 16px",
-              zIndex: 3,
+              zIndex: 4,
               fontSize: 11,
               lineHeight: 1.9,
             }}

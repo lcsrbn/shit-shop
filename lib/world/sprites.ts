@@ -42,7 +42,10 @@ export type SpriteName =
   | "hoodie"
   | "radio"
   | "terminal"
-  | "plant";
+  | "plant"
+  | "monolith"
+  | "heap"
+  | "spores";
 
 export const SPRITES: Record<SpriteName, string[]> = {
   floor: [
@@ -207,7 +210,82 @@ export const SPRITES: Record<SpriteName, string[]> = {
     "________________",
     "________________",
   ],
+  monolith: [
+    "________________",
+    "______pm________",
+    "_____pmmk_______",
+    "_____pmmk_______",
+    "_____pmmk_______",
+    "_____pmmk_______",
+    "_____pmmk_______",
+    "_____pmmk_______",
+    "_____pmmk_______",
+    "_____pmmk_______",
+    "_____pmmk_______",
+    "_____pmmk_______",
+    "____pmmmk_______",
+    "____bbbbbb______",
+    "________________",
+    "________________",
+  ],
+  // Once a shopkeeper, now a mound. One gold eye. (after Mold Mold Mold)
+  heap: [
+    "________________",
+    "________________",
+    "_______tt_______",
+    "_____tttttt_____",
+    "____tttuttt_____",
+    "___ttttttttt____",
+    "__ttgkttttttt___",
+    "_tttttttmmtttt__",
+    "_ttttttttmttttt_",
+    "_tutttttttttttt_",
+    "tttttttttttttttt",
+    "ttttmmtttttutttt",
+    "tttttttttttttttt",
+    "_bt_ttt_tt_ttb__",
+    "________________",
+    "________________",
+  ],
+  // A colony of small wet things that speak in unison.
+  spores: [
+    "________________",
+    "________________",
+    "___uu___________",
+    "__uukuu_________",
+    "__uuuuu____tt___",
+    "___uu_____tkkt__",
+    "__________tttt__",
+    "___________tt___",
+    "_____ttttt______",
+    "____tttkttt_____",
+    "____ttttttt_mm__",
+    "_uu_ttttttt_mkm_",
+    "_uku_ttttt__mm__",
+    "__u___ttt_______",
+    "________________",
+    "________________",
+  ],
 };
+
+function drawSprite(
+  ctx: CanvasRenderingContext2D,
+  rows: string[],
+  ox: number,
+  oy: number
+) {
+  for (let y = 0; y < 16; y++) {
+    const row = rows[y] ?? "";
+
+    for (let x = 0; x < 16; x++) {
+      const color = INK[row[x] ?? "_"];
+      if (!color) continue;
+
+      ctx.fillStyle = color;
+      ctx.fillRect(ox + x, oy + y, 1, 1);
+    }
+  }
+}
 
 // Renders a sprite definition to a 16x16 PNG data URL. Client-only.
 export function spriteToDataUrl(rows: string[]): string {
@@ -218,16 +296,138 @@ export function spriteToDataUrl(rows: string[]): string {
   const ctx = canvas.getContext("2d");
   if (!ctx) return "";
 
-  for (let y = 0; y < 16; y++) {
-    const row = rows[y] ?? "";
+  drawSprite(ctx, rows, 0, 0);
+  return canvas.toDataURL();
+}
 
-    for (let x = 0; x < 16; x++) {
-      const color = INK[row[x] ?? "_"];
-      if (!color) continue;
+// Deterministic per-pixel noise, so the land looks weathered but stable.
+function hash2(x: number, y: number): number {
+  let h = (x * 374761393 + y * 668265263) | 0;
+  h = ((h ^ (h >>> 13)) * 1274126177) | 0;
+  return (h ^ (h >>> 16)) >>> 0;
+}
 
-      ctx.fillStyle = color;
-      ctx.fillRect(x, y, 1, 1);
+type PaintTile = "floor" | "wall" | "door" | "void";
+
+// Composites a whole room into one PNG: speckled floor, walls, doors,
+// glowing rims where the land meets the abyss, cliffs dripping into it.
+// Void stays transparent so the fixed starfield shows through (parallax).
+export function roomToDataUrl(tiles: PaintTile[][]): string {
+  const h = tiles.length;
+  const w = tiles[0]?.length ?? 0;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = w * 16;
+  canvas.height = h * 16;
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return "";
+
+  const at = (x: number, y: number): PaintTile => tiles[y]?.[x] ?? "void";
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const kind = at(x, y);
+      if (kind === "void") continue;
+
+      if (kind === "wall") {
+        // Context-aware wall: highlight cap only at the top of a run,
+        // shadow only at the bottom, so vertical runs read as one wall.
+        ctx.fillStyle = PALETTE.wall;
+        ctx.fillRect(x * 16, y * 16, 16, 16);
+
+        for (let py = 0; py < 16; py++) {
+          for (let px = 0; px < 16; px++) {
+            if (hash2(x * 16 + px, y * 16 + py) % 61 === 0) {
+              ctx.fillStyle = PALETTE.dark;
+              ctx.fillRect(x * 16 + px, y * 16 + py, 1, 1);
+            }
+          }
+        }
+
+        if (at(x, y - 1) !== "wall") {
+          ctx.fillStyle = PALETTE.wallHi;
+          ctx.fillRect(x * 16, y * 16, 16, 3);
+        }
+
+        if (at(x, y + 1) !== "wall" && at(x, y + 1) !== "floor") {
+          ctx.fillStyle = PALETTE.ink;
+          ctx.fillRect(x * 16, y * 16 + 15, 16, 1);
+        }
+      } else if (kind === "door") {
+        drawSprite(ctx, SPRITES.door, x * 16, y * 16);
+      } else {
+        ctx.fillStyle = PALETTE.floor;
+        ctx.fillRect(x * 16, y * 16, 16, 16);
+
+        for (let py = 0; py < 16; py++) {
+          for (let px = 0; px < 16; px++) {
+            const r = hash2(x * 16 + px, y * 16 + py) % 89;
+            if (r === 0) {
+              ctx.fillStyle = PALETTE.floorHi;
+              ctx.fillRect(x * 16 + px, y * 16 + py, 1, 1);
+            } else if (r === 1) {
+              ctx.fillStyle = PALETTE.dark;
+              ctx.fillRect(x * 16 + px, y * 16 + py, 1, 1);
+            }
+          }
+        }
+      }
     }
+  }
+
+  // Edges: rim light where floor meets the void, cliff faces below.
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (at(x, y) !== "floor") continue;
+
+      ctx.fillStyle = PALETTE.floorHi;
+      if (at(x, y - 1) === "void") ctx.fillRect(x * 16, y * 16, 16, 1);
+      if (at(x - 1, y) === "void") ctx.fillRect(x * 16, y * 16, 1, 16);
+      if (at(x + 1, y) === "void") ctx.fillRect(x * 16 + 15, y * 16, 1, 16);
+
+      if (at(x, y + 1) === "void") {
+        ctx.fillStyle = PALETTE.wallHi;
+        ctx.fillRect(x * 16, y * 16 + 15, 16, 1);
+
+        for (let px = 0; px < 16; px++) {
+          const depth = 4 + (hash2(x * 16 + px, y) % 5);
+
+          for (let py = 0; py < depth; py++) {
+            ctx.fillStyle = py < 2 ? PALETTE.wall : PALETTE.dark;
+            ctx.fillRect(x * 16 + px, (y + 1) * 16 + py, 1, 1);
+          }
+
+          if (hash2(x * 16 + px, y + 7) % 11 === 0) {
+            ctx.fillStyle = PALETTE.dark;
+            ctx.fillRect(x * 16 + px, (y + 1) * 16 + depth, 1, 3);
+          }
+        }
+      }
+    }
+  }
+
+  return canvas.toDataURL();
+}
+
+// A repeating tile of faint dust/stars for the abyss behind the land.
+export function starfieldToDataUrl(): string {
+  const size = 128;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return "";
+
+  for (let i = 0; i < 70; i++) {
+    const x = hash2(i, 1) % size;
+    const y = hash2(i, 2) % size;
+    const r = hash2(i, 3) % 12;
+
+    ctx.fillStyle =
+      r === 0 ? PALETTE.wall : r < 4 ? PALETTE.floorHi : PALETTE.dark;
+    ctx.fillRect(x, y, 1, 1);
   }
 
   return canvas.toDataURL();
