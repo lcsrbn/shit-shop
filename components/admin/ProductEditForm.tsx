@@ -112,6 +112,32 @@ export function ProductEditForm({ product }: { product: ProductRow }) {
     });
   }
 
+  function deactivateProduct() {
+    startTransition(async () => {
+      const res = await fetch("/api/admin/products/update", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          productId: product.id,
+          ...productState,
+          sort_order: Number(productState.sort_order),
+          is_active: false,
+        }),
+      });
+
+      const payload = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        alert(payload?.error ?? "Failed to deactivate product");
+        return;
+      }
+
+      router.refresh();
+    });
+  }
+
   function updateVariant(variantId: string) {
     const variant = variants.find((item) => item.id === variantId);
     if (!variant) return;
@@ -361,7 +387,7 @@ export function ProductEditForm({ product }: { product: ProductRow }) {
             Active product
           </label>
 
-          <div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button
               type="button"
               onClick={updateProduct}
@@ -379,6 +405,26 @@ export function ProductEditForm({ product }: { product: ProductRow }) {
             >
               Save product
             </button>
+
+            {product.is_active === true && (
+              <button
+                type="button"
+                onClick={deactivateProduct}
+                disabled={isPending}
+                style={{
+                  borderRadius: 999,
+                  border: "1px solid rgba(192,57,43,.45)",
+                  background: "rgba(192,57,43,.06)",
+                  color: "#c0392b",
+                  padding: "12px 16px",
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  opacity: isPending ? 0.6 : 1,
+                }}
+              >
+                Deactivate product
+              </button>
+            )}
           </div>
         </div>
       </section>
