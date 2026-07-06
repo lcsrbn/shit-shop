@@ -264,11 +264,11 @@ const PLAYER_TOP = [
   "________________________",
   "________________________",
   "_________kkkkk__________",
-  "________kbbbbbk_________",
-  "________kbwbwbk_________",
-  "________kbbbbbk_________",
+  "_________kbbbk__________",
+  "_________kwbbw__________",
   "_________kbbbk__________",
   "__________kbk___________",
+  "___________k____________",
   "_____ff__kkkkkk_________",
   "____feeekbbbbbbk________",
   "____feeekbebbebk________",
@@ -291,21 +291,21 @@ const PLAYER_TOP_BACK = [
   "________________________",
   "________________________",
   "_________kkkkk__________",
-  "________kbbbbbk_________",
-  "________kbbbbbk_________",
-  "________kbbbbbk_________",
-  "_________kbbbk__________",
-  "__________kbk___________",
-  "_________kkkkkk_________",
-  "________kbbbbbbk________",
-  "________kfffffbk________",
-  "________keeeeebk_e______",
-  "________keegeebk_e______",
-  "________keeeeebk_e______",
-  "________kbbbbbbk_e______",
-  "________kbbbbbbk_p______",
-  "________kkkkkkkk________",
-  "_________kbbbbk_________",
+  "_________kkkkk__________",
+  "_________kkkkkw_________",
+  "_________kkkkk__________",
+  "__________kkk___________",
+  "___________k____________",
+  "_________bbbbb__________",
+  "________bbbbbbb_________",
+  "________bfffffbe________",
+  "________beeeeeb_e_______",
+  "________beegeeb_e_______",
+  "________beeeeeb_e_______",
+  "________bbbbbbb_e_______",
+  "________bbbbbbb_p_______",
+  "________bbbbbbb_________",
+  "_________bbbbb__________",
 ];
 
 // Body dropped one pixel for the passing pose — the walk's bob.
@@ -336,20 +336,20 @@ const PLAYER_LEGS_IDLE = [
 
 // Contact pose, left leg swung forward and lifted at the heel.
 const PLAYER_LEGS_L = [
-  "________kk___kk_________",
-  "_______k______k_________",
-  "_______k______k_________",
-  "______k_______k_________",
-  "______k_______k_________",
-  "_____k________k_________",
-  "_____k________k_________",
-  "____kk________k_________",
-  "______________k_________",
-  "______________k_________",
-  "______________k_________",
-  "______________k_________",
-  "______________k_________",
-  "_____________kk_________",
+  "________kk_____kk_______",
+  "_______k________k_______",
+  "_______k________k_______",
+  "______k_________k_______",
+  "______k_________k_______",
+  "______k_________k_______",
+  "______k_________k_______",
+  "______kk________k_______",
+  "________________k_______",
+  "________________k_______",
+  "________________k_______",
+  "________________k_______",
+  "________________k_______",
+  "________________kk______",
   "________________________",
   "________________________",
   "________________________",
@@ -361,11 +361,11 @@ const PLAYER_LEGS_R = [
   "________kk___kk_________",
   "________k______k________",
   "________k______k________",
-  "________k_______k_______",
-  "________k_______k_______",
-  "________k________k______",
-  "________k________k______",
-  "________k________kk_____",
+  "________k______k________",
+  "________k______k________",
+  "________k______k________",
+  "________k______k________",
+  "________k___kk__________",
   "________k_______________",
   "________k_______________",
   "________k_______________",
@@ -380,41 +380,100 @@ const PLAYER_LEGS_R = [
 
 // Passing pose: legs close under the body, one pixel shorter (the bob).
 const PLAYER_LEGS_PASS = [
-  "________kk___kk_________",
-  "_________k___k__________",
-  "_________k___k__________",
-  "_________k___k__________",
-  "_________k___k__________",
-  "_________k___k__________",
-  "_________k___k__________",
-  "_________k___k__________",
-  "_________k___k__________",
-  "_________k___k__________",
-  "_________k___k__________",
-  "_________k___k__________",
-  "________kk___kk_________",
+  "_______kk______kk_______",
+  "_______k_______k________",
+  "_______k_______k________",
+  "_______k_______k________",
+  "_______k_______k________",
+  "_______k_______k________",
+  "_______k_______k________",
+  "_______k_______k________",
+  "_______k_______k________",
+  "_______k_______k________",
+  "_______k_______k________",
+  "_______k_______k________",
+  "______kk_______kk_______",
   "________________________",
   "________________________",
   "________________________",
   "________________________",
 ];
 
-// 0 idle · 1 contact L · 2 passing · 3 contact R. Left = CSS mirror.
-// `front` faces the viewer (walking down/left/right); `back` is used
-// when walking up, away from the viewer. Legs are shared.
+// Mid-swing between passing and the left contact: left leg reaching out
+// and down, right leg planted. Smooths the scissor.
+const PLAYER_LEGS_HALF_L = [
+  "_______kk______kk_______",
+  "_______k________k_______",
+  "_______k________k_______",
+  "______k_________k_______",
+  "______k_________k_______",
+  "______k_________k_______",
+  "_____k__________k_______",
+  "_____k__________k_______",
+  "____kk__________k_______",
+  "________________k_______",
+  "________________k_______",
+  "________________k_______",
+  "________________k_______",
+  "________________kk______",
+  "________________________",
+  "________________________",
+  "________________________",
+  "________________________",
+];
+
+// Mid-swing between passing and the right contact: mirror of HALF_L.
+const PLAYER_LEGS_HALF_R = [
+  "________kk_____kk_______",
+  "________k_______k_______",
+  "________k_______k_______",
+  "________k______k________",
+  "________k______k________",
+  "________k______k________",
+  "________k_____k_________",
+  "________k_____k_________",
+  "________k____kk_________",
+  "________k_______________",
+  "________k_______________",
+  "________k_______________",
+  "________k_______________",
+  "_______kk_______________",
+  "________________________",
+  "________________________",
+  "________________________",
+  "________________________",
+];
+
+// Poses: 0 idle · 1 contact L · 2 half L · 3 passing · 4 half R · 5 contact R.
+// A step plays a 4-pose sub-sequence (see PLAYER_STEP_SEQUENCE); the walk
+// ping-pongs 1·2·3·4·5·4·3·2 for a smooth scissor. Left = CSS mirror.
+// `front` faces the viewer (walking down/left/right); `back` is used when
+// walking up, away from the viewer. Legs are shared between the views.
 export const PLAYER_FRAMES: { front: string[][]; back: string[][] } = {
   front: [
     [...PLAYER_TOP, ...PLAYER_LEGS_IDLE],
     [...PLAYER_TOP, ...PLAYER_LEGS_L],
+    [...PLAYER_TOP, ...PLAYER_LEGS_HALF_L],
     [...PLAYER_TOP_LOW, ...PLAYER_LEGS_PASS],
+    [...PLAYER_TOP, ...PLAYER_LEGS_HALF_R],
     [...PLAYER_TOP, ...PLAYER_LEGS_R],
   ],
   back: [
     [...PLAYER_TOP_BACK, ...PLAYER_LEGS_IDLE],
     [...PLAYER_TOP_BACK, ...PLAYER_LEGS_L],
+    [...PLAYER_TOP_BACK, ...PLAYER_LEGS_HALF_L],
     [...PLAYER_TOP_BACK_LOW, ...PLAYER_LEGS_PASS],
+    [...PLAYER_TOP_BACK, ...PLAYER_LEGS_HALF_R],
     [...PLAYER_TOP_BACK, ...PLAYER_LEGS_R],
   ],
+};
+
+// A footfall plays these poses in order across one tile-step. Alternating
+// left/right footfalls make the walk ping-pong through the six poses.
+// To add detail, insert more poses above and lengthen these sequences.
+export const PLAYER_STEP_SEQUENCE: { left: number[]; right: number[] } = {
+  left: [1, 2, 3, 4], // contact L · half L · passing · half R
+  right: [5, 4, 3, 2], // contact R · half R · passing · half L
 };
 
 function drawSprite(

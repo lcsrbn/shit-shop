@@ -6,6 +6,7 @@ import { useCart } from "@/lib/cart";
 import {
   PALETTE,
   PLAYER_FRAMES,
+  PLAYER_STEP_SEQUENCE,
   SPRITES,
   roomToDataUrl,
   spriteToDataUrl,
@@ -183,11 +184,11 @@ export default function WorldGame({
   const [facing, setFacing] = useState<"left" | "right" | "up" | "down">(
     "down"
   );
-  const [walkFrame, setWalkFrame] = useState(0); // 0 idle · 1 contact L · 2 passing · 3 contact R
+  const [walkFrame, setWalkFrame] = useState(0); // index into PLAYER_FRAMES
   const [footWord, setFootWord] = useState<"TIP" | "TAP" | null>(null);
 
   const strideRef = useRef(0);
-  const midTimerRef = useRef<number | null>(null);
+  const seqTimersRef = useRef<number[]>([]);
   const stepTimerRef = useRef<number | null>(null);
 
   const pendingRef = useRef<
@@ -274,9 +275,16 @@ export default function WorldGame({
     } catch {}
   }, [roomId, pos, taken, inv, moved, loaded]);
 
-  // One step: move, face the direction walked, and play the gait —
-  // contact pose on the step, passing pose halfway through, idle when
-  // the walking stops. Each footfall says its name: TIP, TAP.
+  function clearGaitTimers() {
+    seqTimersRef.current.forEach((t) => window.clearTimeout(t));
+    seqTimersRef.current = [];
+    if (stepTimerRef.current) window.clearTimeout(stepTimerRef.current);
+  }
+
+  // One step: move, face the direction walked, and play the gait. Each
+  // footfall runs a four-pose sub-sequence across the step (contact →
+  // half → passing → half), alternating left/right so the walk scissors
+  // smoothly. Idle when the walking stops. Each footfall says its name.
   function stepTo(next: Pt) {
     if (next.x < pos.x) setFacing("left");
     else if (next.x > pos.x) setFacing("right");
@@ -287,30 +295,30 @@ export default function WorldGame({
 
     strideRef.current = strideRef.current === 0 ? 1 : 0;
     const left = strideRef.current === 0;
+    const seq = left ? PLAYER_STEP_SEQUENCE.left : PLAYER_STEP_SEQUENCE.right;
 
-    setWalkFrame(left ? 1 : 3);
     setFootWord(left ? "TIP" : "TAP");
     playFootstep(left);
 
-    if (midTimerRef.current) window.clearTimeout(midTimerRef.current);
-    midTimerRef.current = window.setTimeout(
-      () => setWalkFrame(2),
-      STEP_MS / 2
-    );
+    clearGaitTimers();
+    const frameMs = STEP_MS / seq.length;
+    seq.forEach((frame, i) => {
+      if (i === 0) {
+        setWalkFrame(frame);
+        return;
+      }
+      seqTimersRef.current.push(
+        window.setTimeout(() => setWalkFrame(frame), frameMs * i)
+      );
+    });
 
-    if (stepTimerRef.current) window.clearTimeout(stepTimerRef.current);
     stepTimerRef.current = window.setTimeout(() => {
       setWalkFrame(0);
       setFootWord(null);
     }, STEP_MS + 110);
   }
 
-  useEffect(() => {
-    return () => {
-      if (midTimerRef.current) window.clearTimeout(midTimerRef.current);
-      if (stepTimerRef.current) window.clearTimeout(stepTimerRef.current);
-    };
-  }, []);
+  useEffect(() => clearGaitTimers, []);
 
   // Walk along the current path, one step at a time.
   useEffect(() => {
