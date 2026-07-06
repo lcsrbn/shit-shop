@@ -250,89 +250,133 @@ export const SPRITES: Record<SpriteName, string[]> = {
 };
 
 // The wanderer: a dead pilgrim, though nothing should say so out loud.
-// 16x32 — two tiles tall, anchored to the bottom of its cell.
-// Silhouette first: small head, very long stick legs, a pack riding
-// high behind the shoulder; the face is only two embers (after S&S).
-// Head and torso are shared; only the legs change between frames.
+// 24x40 — 1.5 tiles wide, 2.5 tall, anchored to the bottom of its cell.
+// Higher density after the S&S figures: striped torso, thin arms, a
+// muted pack high behind the shoulder, very long stick legs. The only
+// bright detail is two ember eyes.
+// Head and torso are shared; only the legs change between the four
+// walk poses (contact left / passing / contact right / passing).
 const PLAYER_TOP = [
-  "________________",
-  "________________",
-  "________________",
-  "________________",
-  "________________",
-  "________________",
-  "______kkk_______",
-  "_____kbbbk______",
-  "_____kwbwk______",
-  "______kbk_______",
-  "___ffkkkkk______",
-  "__eeekbbbk______",
-  "__egekbfbk______",
-  "__eeekbbbk_e____",
-  "__eeekbbbk_e____",
-  "___eekbbbk_p____",
-  "_____kkkkk______",
-  "______kbbk______",
+  "________________________",
+  "________________________",
+  "________________________",
+  "________________________",
+  "________________________",
+  "________________________",
+  "_________kkkkk__________",
+  "________kbbbbbk_________",
+  "________kbwbwbk_________",
+  "________kbbbbbk_________",
+  "_________kbbbk__________",
+  "__________kbk___________",
+  "_____ff__kkkkkk_________",
+  "____feeekbbbbbbk________",
+  "____feeekbebbebk________",
+  "____fegekbbbbbbk_e______",
+  "____feeekbebbebk_e______",
+  "____feeekbbbbbbk_e______",
+  "_____eeekbbbbbbk_e______",
+  "________kbbbbbbk_p______",
+  "________kkkkkkkk________",
+  "_________kbbbbk_________",
 ];
+
+// Body dropped one pixel for the passing pose — the walk's bob.
+// (23 rows; paired with the 17-row passing legs to stay 40 tall.)
+const PLAYER_TOP_LOW = ["________________________", ...PLAYER_TOP];
 
 const PLAYER_LEGS_IDLE = [
-  "______k__k______",
-  "______k__k______",
-  "______k__k______",
-  "______k__k______",
-  "______k__k______",
-  "______k__k______",
-  "______k__k______",
-  "______k__k______",
-  "______k__k______",
-  "______k__k______",
-  "______k__k______",
-  "_____kk__kk_____",
-  "________________",
-  "________________",
+  "________kk___kk_________",
+  "________k_____k_________",
+  "________k_____k_________",
+  "________k_____k_________",
+  "________k_____k_________",
+  "________k_____k_________",
+  "________k_____k_________",
+  "________k_____k_________",
+  "________k_____k_________",
+  "________k_____k_________",
+  "________k_____k_________",
+  "________k_____k_________",
+  "________k_____k_________",
+  "_______kk_____kk________",
+  "________________________",
+  "________________________",
+  "________________________",
+  "________________________",
 ];
 
-// Step A: left leg swings out and lifts, right leg planted.
-const PLAYER_LEGS_A = [
-  "______k__k______",
-  "______k__k______",
-  "______k__k______",
-  "_____k___k______",
-  "_____k___k______",
-  "_____k___k______",
-  "_____k___k______",
-  "____k____k______",
-  "____kk___k______",
-  "_________k______",
-  "_________k______",
-  "________kk______",
-  "________________",
-  "________________",
+// Contact pose, left leg swung forward and lifted at the heel.
+const PLAYER_LEGS_L = [
+  "________kk___kk_________",
+  "_______k______k_________",
+  "_______k______k_________",
+  "______k_______k_________",
+  "______k_______k_________",
+  "_____k________k_________",
+  "_____k________k_________",
+  "____kk________k_________",
+  "______________k_________",
+  "______________k_________",
+  "______________k_________",
+  "______________k_________",
+  "______________k_________",
+  "_____________kk_________",
+  "________________________",
+  "________________________",
+  "________________________",
+  "________________________",
 ];
 
-// Step B: mirror of A.
-const PLAYER_LEGS_B = [
-  "______k__k______",
-  "______k__k______",
-  "______k__k______",
-  "______k___k_____",
-  "______k___k_____",
-  "______k___k_____",
-  "______k___k_____",
-  "______k____k____",
-  "______k___kk____",
-  "______k_________",
-  "______k_________",
-  "_____kk_________",
-  "________________",
-  "________________",
+// Contact pose, right leg swung forward and lifted at the heel.
+const PLAYER_LEGS_R = [
+  "________kk___kk_________",
+  "________k______k________",
+  "________k______k________",
+  "________k_______k_______",
+  "________k_______k_______",
+  "________k________k______",
+  "________k________k______",
+  "________k________kk_____",
+  "________k_______________",
+  "________k_______________",
+  "________k_______________",
+  "________k_______________",
+  "________k_______________",
+  "_______kk_______________",
+  "________________________",
+  "________________________",
+  "________________________",
+  "________________________",
 ];
 
-// Frame 0 = idle, 1/2 = alternating steps. Facing left is a CSS mirror.
+// Passing pose: legs close under the body, one pixel shorter (the bob).
+const PLAYER_LEGS_PASS = [
+  "________kk___kk_________",
+  "_________k___k__________",
+  "_________k___k__________",
+  "_________k___k__________",
+  "_________k___k__________",
+  "_________k___k__________",
+  "_________k___k__________",
+  "_________k___k__________",
+  "_________k___k__________",
+  "_________k___k__________",
+  "_________k___k__________",
+  "_________k___k__________",
+  "________kk___kk_________",
+  "________________________",
+  "________________________",
+  "________________________",
+  "________________________",
+];
+
+// 0 idle · 1 contact L · 2 passing · 3 contact R. Left = CSS mirror.
 export const PLAYER_FRAMES: string[][] = [
   [...PLAYER_TOP, ...PLAYER_LEGS_IDLE],
-  [...PLAYER_TOP, ...PLAYER_LEGS_A],
-  [...PLAYER_TOP, ...PLAYER_LEGS_B],
+  [...PLAYER_TOP, ...PLAYER_LEGS_L],
+  [...PLAYER_TOP_LOW, ...PLAYER_LEGS_PASS],
+  [...PLAYER_TOP, ...PLAYER_LEGS_R],
 ];
 
 function drawSprite(

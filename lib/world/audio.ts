@@ -28,6 +28,37 @@ export function isRadioOn() {
   return playing;
 }
 
+// A footstep: a whisper of filtered noise. Two pitches — tip and tap.
+// Steps only happen on user input, so the context is gesture-unlocked.
+export function playFootstep(alt: boolean) {
+  const ac = ensureContext();
+  if (ac.state === "suspended") void ac.resume();
+
+  const dur = 0.05;
+  const buffer = ac.createBuffer(1, Math.ceil(ac.sampleRate * dur), ac.sampleRate);
+  const data = buffer.getChannelData(0);
+
+  for (let i = 0; i < data.length; i++) {
+    data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+  }
+
+  const src = ac.createBufferSource();
+  src.buffer = buffer;
+
+  const filter = ac.createBiquadFilter();
+  filter.type = "bandpass";
+  filter.frequency.value = alt ? 640 : 390;
+  filter.Q.value = 1.4;
+
+  const gain = ac.createGain();
+  gain.gain.value = 0.055;
+
+  src.connect(filter);
+  filter.connect(gain);
+  gain.connect(ac.destination);
+  src.start();
+}
+
 export function startRadio() {
   if (playing) return;
 
