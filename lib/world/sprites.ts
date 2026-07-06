@@ -281,9 +281,37 @@ const PLAYER_TOP = [
   "_________kbbbbk_________",
 ];
 
+// Seen from behind, walking away: no eyes, and the pack shows itself
+// for what it is — worn on the back, buckle out.
+const PLAYER_TOP_BACK = [
+  "________________________",
+  "________________________",
+  "________________________",
+  "________________________",
+  "________________________",
+  "________________________",
+  "_________kkkkk__________",
+  "________kbbbbbk_________",
+  "________kbbbbbk_________",
+  "________kbbbbbk_________",
+  "_________kbbbk__________",
+  "__________kbk___________",
+  "_________kkkkkk_________",
+  "________kbbbbbbk________",
+  "________kfffffbk________",
+  "________keeeeebk_e______",
+  "________keegeebk_e______",
+  "________keeeeebk_e______",
+  "________kbbbbbbk_e______",
+  "________kbbbbbbk_p______",
+  "________kkkkkkkk________",
+  "_________kbbbbk_________",
+];
+
 // Body dropped one pixel for the passing pose — the walk's bob.
 // (23 rows; paired with the 17-row passing legs to stay 40 tall.)
 const PLAYER_TOP_LOW = ["________________________", ...PLAYER_TOP];
+const PLAYER_TOP_BACK_LOW = ["________________________", ...PLAYER_TOP_BACK];
 
 const PLAYER_LEGS_IDLE = [
   "________kk___kk_________",
@@ -372,12 +400,22 @@ const PLAYER_LEGS_PASS = [
 ];
 
 // 0 idle · 1 contact L · 2 passing · 3 contact R. Left = CSS mirror.
-export const PLAYER_FRAMES: string[][] = [
-  [...PLAYER_TOP, ...PLAYER_LEGS_IDLE],
-  [...PLAYER_TOP, ...PLAYER_LEGS_L],
-  [...PLAYER_TOP_LOW, ...PLAYER_LEGS_PASS],
-  [...PLAYER_TOP, ...PLAYER_LEGS_R],
-];
+// `front` faces the viewer (walking down/left/right); `back` is used
+// when walking up, away from the viewer. Legs are shared.
+export const PLAYER_FRAMES: { front: string[][]; back: string[][] } = {
+  front: [
+    [...PLAYER_TOP, ...PLAYER_LEGS_IDLE],
+    [...PLAYER_TOP, ...PLAYER_LEGS_L],
+    [...PLAYER_TOP_LOW, ...PLAYER_LEGS_PASS],
+    [...PLAYER_TOP, ...PLAYER_LEGS_R],
+  ],
+  back: [
+    [...PLAYER_TOP_BACK, ...PLAYER_LEGS_IDLE],
+    [...PLAYER_TOP_BACK, ...PLAYER_LEGS_L],
+    [...PLAYER_TOP_BACK_LOW, ...PLAYER_LEGS_PASS],
+    [...PLAYER_TOP_BACK, ...PLAYER_LEGS_R],
+  ],
+};
 
 function drawSprite(
   ctx: CanvasRenderingContext2D,

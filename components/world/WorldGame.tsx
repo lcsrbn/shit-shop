@@ -174,10 +174,15 @@ export default function WorldGame({
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [urls, setUrls] = useState<Record<SpriteName, string> | null>(null);
-  const [playerUrls, setPlayerUrls] = useState<string[] | null>(null);
+  const [playerUrls, setPlayerUrls] = useState<{
+    front: string[];
+    back: string[];
+  } | null>(null);
   const [roomUrls, setRoomUrls] = useState<Record<string, string> | null>(null);
   const [starUrl, setStarUrl] = useState<string | null>(null);
-  const [facing, setFacing] = useState<"left" | "right">("right");
+  const [facing, setFacing] = useState<"left" | "right" | "up" | "down">(
+    "down"
+  );
   const [walkFrame, setWalkFrame] = useState(0); // 0 idle · 1 contact L · 2 passing · 3 contact R
   const [footWord, setFootWord] = useState<"TIP" | "TAP" | null>(null);
 
@@ -211,7 +216,10 @@ export default function WorldGame({
       spriteToDataUrl(rows),
     ]);
     setUrls(Object.fromEntries(entries));
-    setPlayerUrls(PLAYER_FRAMES.map(spriteToDataUrl));
+    setPlayerUrls({
+      front: PLAYER_FRAMES.front.map(spriteToDataUrl),
+      back: PLAYER_FRAMES.back.map(spriteToDataUrl),
+    });
 
     setRoomUrls(
       Object.fromEntries(
@@ -272,6 +280,8 @@ export default function WorldGame({
   function stepTo(next: Pt) {
     if (next.x < pos.x) setFacing("left");
     else if (next.x > pos.x) setFacing("right");
+    else if (next.y < pos.y) setFacing("up");
+    else if (next.y > pos.y) setFacing("down");
 
     setPos(next);
 
@@ -436,6 +446,8 @@ export default function WorldGame({
       // Turn in place even when the way is blocked.
       if (delta[0] < 0) setFacing("left");
       else if (delta[0] > 0) setFacing("right");
+      else if (delta[1] < 0) setFacing("up");
+      else if (delta[1] > 0) setFacing("down");
 
       const nx = pos.x + delta[0];
       const ny = pos.y + delta[1];
@@ -764,7 +776,11 @@ export default function WorldGame({
             {playerUrls && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={playerUrls[walkFrame]}
+                src={
+                  (facing === "up" ? playerUrls.back : playerUrls.front)[
+                    walkFrame
+                  ]
+                }
                 alt="you"
                 draggable={false}
                 style={{
