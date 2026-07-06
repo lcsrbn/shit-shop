@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useCart } from "@/lib/cart";
 import {
   PALETTE,
+  PLAYER_FRAMES,
   SPRITES,
   roomToDataUrl,
   spriteToDataUrl,
@@ -168,8 +169,13 @@ export default function WorldGame({
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [urls, setUrls] = useState<Record<SpriteName, string> | null>(null);
+  const [playerUrls, setPlayerUrls] = useState<string[] | null>(null);
   const [roomUrls, setRoomUrls] = useState<Record<string, string> | null>(null);
   const [starUrl, setStarUrl] = useState<string | null>(null);
+  const [facing, setFacing] = useState<"left" | "right">("right");
+  const [walkFrame, setWalkFrame] = useState(0); // 0 idle, 1/2 step frames
+
+  const stepTimerRef = useRef<number | null>(null);
 
   const pendingRef = useRef<
     | { type: "object"; objectId: string }
@@ -197,6 +203,7 @@ export default function WorldGame({
       spriteToDataUrl(rows),
     ]);
     setUrls(Object.fromEntries(entries));
+    setPlayerUrls(PLAYER_FRAMES.map(spriteToDataUrl));
 
     setRoomUrls(
       Object.fromEntries(
@@ -251,13 +258,35 @@ export default function WorldGame({
     } catch {}
   }, [roomId, pos, taken, inv, moved, loaded]);
 
+  // One step: move, face the direction walked, swing the legs, then
+  // settle back to the idle frame shortly after the last step.
+  function stepTo(next: Pt) {
+    if (next.x < pos.x) setFacing("left");
+    else if (next.x > pos.x) setFacing("right");
+
+    setPos(next);
+    setWalkFrame((f) => (f === 1 ? 2 : 1));
+
+    if (stepTimerRef.current) window.clearTimeout(stepTimerRef.current);
+    stepTimerRef.current = window.setTimeout(
+      () => setWalkFrame(0),
+      STEP_MS + 100
+    );
+  }
+
+  useEffect(() => {
+    return () => {
+      if (stepTimerRef.current) window.clearTimeout(stepTimerRef.current);
+    };
+  }, []);
+
   // Walk along the current path, one step at a time.
   useEffect(() => {
     if (path.length === 0) return;
 
     const t = window.setTimeout(() => {
       const [next, ...rest] = path;
-      setPos(next);
+      stepTo(next);
       setPath(rest);
 
       if (rest.length === 0 && pendingRef.current) {
@@ -382,6 +411,10 @@ export default function WorldGame({
       setPath([]);
       pendingRef.current = null;
 
+      // Turn in place even when the way is blocked.
+      if (delta[0] < 0) setFacing("left");
+      else if (delta[0] > 0) setFacing("right");
+
       const nx = pos.x + delta[0];
       const ny = pos.y + delta[1];
 
@@ -397,7 +430,7 @@ export default function WorldGame({
         return;
       }
 
-      if (walkable(nx, ny)) setPos({ x: nx, y: ny });
+      if (walkable(nx, ny)) stepTo({ x: nx, y: ny });
     }
 
     window.addEventListener("keydown", onKey);
@@ -562,10 +595,6 @@ export default function WorldGame({
       }}
     >
       <style>{`
-        @keyframes ghost-float {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-9%); }
-        }
         @keyframes radio-glow {
           0%, 100% { opacity: .25; }
           50% { opacity: .6; }
@@ -710,18 +739,20 @@ export default function WorldGame({
               zIndex: 2,
             }}
           >
-            {urls && (
+            {playerUrls && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={urls.ghost}
+                src={playerUrls[walkFrame]}
                 alt="you"
                 draggable={false}
                 style={{
+                  position: "absolute",
+                  left: 0,
+                  bottom: 0,
                   width: "100%",
-                  height: "100%",
+                  height: "200%",
                   imageRendering: "pixelated",
-                  opacity: 0.92,
-                  animation: "ghost-float 2.2s ease-in-out infinite",
+                  transform: facing === "left" ? "scaleX(-1)" : undefined,
                 }}
               />
             )}

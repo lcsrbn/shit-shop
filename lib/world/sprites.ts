@@ -38,7 +38,6 @@ export type SpriteName =
   | "wall"
   | "door"
   | "gate"
-  | "ghost"
   | "hoodie"
   | "radio"
   | "terminal"
@@ -119,24 +118,6 @@ export const SPRITES: Record<SpriteName, string[]> = {
     "ammmmmmmmmmmmmma",
     "aaaaaaaaaaaaaaaa",
     "aaaaaaaaaaaaaaaa",
-  ],
-  ghost: [
-    "________________",
-    "_____wwwwww_____",
-    "____wwwwwwww____",
-    "___wwwwwwwwww___",
-    "___wwwwwwwwww___",
-    "___wkkwwwwkkw___",
-    "___wkkwwwwkkw___",
-    "___wwwwwwwwww___",
-    "___wwwwmmwwww___",
-    "___wwwwwwwwww___",
-    "___wwwwwwwwww___",
-    "___wwwwwwwwww___",
-    "___w_ww_ww_w____",
-    "________________",
-    "________________",
-    "________________",
   ],
   hoodie: [
     "________________",
@@ -268,16 +249,102 @@ export const SPRITES: Record<SpriteName, string[]> = {
   ],
 };
 
+// The wanderer: a dead pilgrim, though nothing should say so out loud.
+// 16x32 — two tiles tall, anchored to the bottom of its cell.
+// Silhouette first: small head, very long stick legs, a pack riding
+// high behind the shoulder; the face is only two embers (after S&S).
+// Head and torso are shared; only the legs change between frames.
+const PLAYER_TOP = [
+  "________________",
+  "________________",
+  "________________",
+  "________________",
+  "________________",
+  "________________",
+  "______kkk_______",
+  "_____kbbbk______",
+  "_____kwbwk______",
+  "______kbk_______",
+  "___ffkkkkk______",
+  "__eeekbbbk______",
+  "__egekbfbk______",
+  "__eeekbbbk_e____",
+  "__eeekbbbk_e____",
+  "___eekbbbk_p____",
+  "_____kkkkk______",
+  "______kbbk______",
+];
+
+const PLAYER_LEGS_IDLE = [
+  "______k__k______",
+  "______k__k______",
+  "______k__k______",
+  "______k__k______",
+  "______k__k______",
+  "______k__k______",
+  "______k__k______",
+  "______k__k______",
+  "______k__k______",
+  "______k__k______",
+  "______k__k______",
+  "_____kk__kk_____",
+  "________________",
+  "________________",
+];
+
+// Step A: left leg swings out and lifts, right leg planted.
+const PLAYER_LEGS_A = [
+  "______k__k______",
+  "______k__k______",
+  "______k__k______",
+  "_____k___k______",
+  "_____k___k______",
+  "_____k___k______",
+  "_____k___k______",
+  "____k____k______",
+  "____kk___k______",
+  "_________k______",
+  "_________k______",
+  "________kk______",
+  "________________",
+  "________________",
+];
+
+// Step B: mirror of A.
+const PLAYER_LEGS_B = [
+  "______k__k______",
+  "______k__k______",
+  "______k__k______",
+  "______k___k_____",
+  "______k___k_____",
+  "______k___k_____",
+  "______k___k_____",
+  "______k____k____",
+  "______k___kk____",
+  "______k_________",
+  "______k_________",
+  "_____kk_________",
+  "________________",
+  "________________",
+];
+
+// Frame 0 = idle, 1/2 = alternating steps. Facing left is a CSS mirror.
+export const PLAYER_FRAMES: string[][] = [
+  [...PLAYER_TOP, ...PLAYER_LEGS_IDLE],
+  [...PLAYER_TOP, ...PLAYER_LEGS_A],
+  [...PLAYER_TOP, ...PLAYER_LEGS_B],
+];
+
 function drawSprite(
   ctx: CanvasRenderingContext2D,
   rows: string[],
   ox: number,
   oy: number
 ) {
-  for (let y = 0; y < 16; y++) {
+  for (let y = 0; y < rows.length; y++) {
     const row = rows[y] ?? "";
 
-    for (let x = 0; x < 16; x++) {
+    for (let x = 0; x < row.length; x++) {
       const color = INK[row[x] ?? "_"];
       if (!color) continue;
 
@@ -287,11 +354,12 @@ function drawSprite(
   }
 }
 
-// Renders a sprite definition to a 16x16 PNG data URL. Client-only.
+// Renders a sprite definition to a PNG data URL. Client-only.
+// Sprites may be taller than one tile (e.g. 16x32 characters).
 export function spriteToDataUrl(rows: string[]): string {
   const canvas = document.createElement("canvas");
-  canvas.width = 16;
-  canvas.height = 16;
+  canvas.width = Math.max(...rows.map((r) => r.length), 1);
+  canvas.height = rows.length;
 
   const ctx = canvas.getContext("2d");
   if (!ctx) return "";
