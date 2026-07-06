@@ -249,13 +249,23 @@ export const SPRITES: Record<SpriteName, string[]> = {
   ],
 };
 
-// The wanderer: a dead pilgrim, though nothing should say so out loud.
-// 24x40 — 1.5 tiles wide, 2.5 tall, anchored to the bottom of its cell.
-// Higher density after the S&S figures: striped torso, thin arms, a
-// muted pack high behind the shoulder, very long stick legs. The only
-// bright detail is two ember eyes.
-// Head and torso are shared; only the legs change between the four
-// walk poses (contact left / passing / contact right / passing).
+// ======================= THE WANDERER — PLAYER ==========================
+// A dead pilgrim, though nothing should say so out loud. 24x40 — 1.5
+// tiles wide, 2.5 tall, anchored to the bottom of its cell.
+//
+// THREE VIEWS: front (walking down), back (walking up), side (walking
+// right — left is the CSS mirror). Each view = a torso ("TOP") plus
+// interchangeable legs.
+//
+// THE WALK PLAYS IN FILE ORDER. Each view's `walk` array (bottom of this
+// section) is the exact temporal sequence:
+//   walk[0] → walk[1] → walk[2] → walk[3] → back to walk[0] …
+// One tile-step plays half the cycle (two frames). TIP sounds on frame 1,
+// TAP on frame 3. To edit the animation, edit the LEGS_WALK_* blocks
+// top-to-bottom: they are already in play order.
+// Rules: every row is 24 chars; contact legs are 18 rows; passing legs
+// are 17 rows (they pair with the 1px-lower "LOW" torso — the bob).
+
 const PLAYER_TOP = [
   "________________________",
   "________________________",
@@ -308,12 +318,42 @@ const PLAYER_TOP_BACK = [
   "_________bbbbb__________",
 ];
 
-// Body dropped one pixel for the passing pose — the walk's bob.
+// Profile, facing right (left is the CSS mirror): one ember eye forward,
+// the pack a hump on the back, the arm a dark line down the torso.
+const PLAYER_TOP_SIDE = [
+  "________________________",
+  "________________________",
+  "________________________",
+  "________________________",
+  "________________________",
+  "________________________",
+  "___________kkkk_________",
+  "___________kbbk_________",
+  "___________kbbw_________",
+  "___________kbbk_________",
+  "____________kk__________",
+  "____________k___________",
+  "__________kkkkk_________",
+  "________ffkbbbbk________",
+  "________eekbbbbk________",
+  "________egkbbbbk________",
+  "________eekbkbbk________",
+  "________eekbkbbk________",
+  "_________ekbkbbk________",
+  "__________kbpbbk________",
+  "__________kkkkkk________",
+  "___________kbbk_________",
+];
+
+// Body dropped one pixel for the passing frames — the walk's bob.
 // (23 rows; paired with the 17-row passing legs to stay 40 tall.)
 const PLAYER_TOP_LOW = ["________________________", ...PLAYER_TOP];
 const PLAYER_TOP_BACK_LOW = ["________________________", ...PLAYER_TOP_BACK];
+const PLAYER_TOP_SIDE_LOW = ["________________________", ...PLAYER_TOP_SIDE];
 
-const PLAYER_LEGS_IDLE = [
+// ---- Legs, front & back views (shared) — IN PLAY ORDER -----------------
+
+const LEGS_IDLE = [
   "________kk___kk_________",
   "________k_____k_________",
   "________k_____k_________",
@@ -334,8 +374,8 @@ const PLAYER_LEGS_IDLE = [
   "________________________",
 ];
 
-// Contact pose, left leg swung forward and lifted at the heel.
-const PLAYER_LEGS_L = [
+// walk frame 1/4 — contact: left leg forward, planted. TIP.
+const LEGS_WALK_1 = [
   "________kk_____kk_______",
   "_______k________k_______",
   "_______k________k_______",
@@ -356,8 +396,29 @@ const PLAYER_LEGS_L = [
   "________________________",
 ];
 
-// Contact pose, right leg swung forward and lifted at the heel.
-const PLAYER_LEGS_R = [
+// walk frame 2/4 — passing: legs under the body (torso drops 1px).
+const LEGS_WALK_2 = [
+  "_______kk______kk_______",
+  "_______k_______k________",
+  "_______k_______k________",
+  "_______k_______k________",
+  "_______k_______k________",
+  "_______k_______k________",
+  "_______k_______k________",
+  "_______k_______k________",
+  "_______k_______k________",
+  "_______k_______k________",
+  "_______k_______k________",
+  "_______k_______k________",
+  "______kk_______kk_______",
+  "________________________",
+  "________________________",
+  "________________________",
+  "________________________",
+];
+
+// walk frame 3/4 — contact: right leg forward, planted. TAP.
+const LEGS_WALK_3 = [
   "________kk___kk_________",
   "________k______k________",
   "________k______k________",
@@ -378,8 +439,8 @@ const PLAYER_LEGS_R = [
   "________________________",
 ];
 
-// Passing pose: legs close under the body, one pixel shorter (the bob).
-const PLAYER_LEGS_PASS = [
+// walk frame 4/4 — passing again (free to differ from frame 2/4).
+const LEGS_WALK_4 = [
   "_______kk______kk_______",
   "_______k_______k________",
   "_______k_______k________",
@@ -399,81 +460,153 @@ const PLAYER_LEGS_PASS = [
   "________________________",
 ];
 
-// Mid-swing between passing and the left contact: left leg reaching out
-// and down, right leg planted. Smooths the scissor.
-const PLAYER_LEGS_HALF_L = [
-  "_______kk______kk_______",
-  "_______k________k_______",
-  "_______k________k_______",
-  "______k_________k_______",
-  "______k_________k_______",
-  "______k_________k_______",
-  "_____k__________k_______",
-  "_____k__________k_______",
-  "____kk__________k_______",
-  "________________k_______",
-  "________________k_______",
-  "________________k_______",
-  "________________k_______",
-  "________________kk______",
+// ---- Legs, side view — IN PLAY ORDER (after the S&S 4-frame sheet) -----
+// Facing right; the near leg reads in silhouette, knees bend, the
+// trailing shin drags flat behind, the swinging foot reaches forward.
+
+const SIDE_LEGS_IDLE = [
+  "___________k__k_________",
+  "___________k__k_________",
+  "___________k__k_________",
+  "___________k__k_________",
+  "___________k__k_________",
+  "___________k__k_________",
+  "___________k__k_________",
+  "___________k__k_________",
+  "___________k__k_________",
+  "___________k__k_________",
+  "___________k__k_________",
+  "___________k__k_________",
+  "___________k__k_________",
+  "__________kk__kk________",
   "________________________",
   "________________________",
   "________________________",
   "________________________",
 ];
 
-// Mid-swing between passing and the right contact: mirror of HALF_L.
-const PLAYER_LEGS_HALF_R = [
-  "________kk_____kk_______",
-  "________k_______k_______",
-  "________k_______k_______",
-  "________k______k________",
-  "________k______k________",
-  "________k______k________",
+// walk frame 1/4 — stride: front leg planted, back shin trailing flat. TIP.
+const SIDE_LEGS_WALK_1 = [
+  "___________k__k_________",
+  "__________k___k_________",
+  "__________k___k_________",
+  "_________k____k_________",
+  "_________k____k_________",
   "________k_____k_________",
-  "________k_____k_________",
-  "________k____kk_________",
-  "________k_______________",
-  "________k_______________",
-  "________k_______________",
-  "________k_______________",
-  "_______kk_______________",
+  "____kkkkk_____k_________",
+  "____k_________k_________",
+  "______________k_________",
+  "______________k_________",
+  "______________k_________",
+  "______________k_________",
+  "______________k_________",
+  "______________kk________",
   "________________________",
   "________________________",
   "________________________",
   "________________________",
 ];
 
-// Poses: 0 idle · 1 contact L · 2 half L · 3 passing · 4 half R · 5 contact R.
-// A step plays a 4-pose sub-sequence (see PLAYER_STEP_SEQUENCE); the walk
-// ping-pongs 1·2·3·4·5·4·3·2 for a smooth scissor. Left = CSS mirror.
-// `front` faces the viewer (walking down/left/right); `back` is used when
-// walking up, away from the viewer. Legs are shared between the views.
-export const PLAYER_FRAMES: { front: string[][]; back: string[][] } = {
-  front: [
-    [...PLAYER_TOP, ...PLAYER_LEGS_IDLE],
-    [...PLAYER_TOP, ...PLAYER_LEGS_L],
-    [...PLAYER_TOP, ...PLAYER_LEGS_HALF_L],
-    [...PLAYER_TOP_LOW, ...PLAYER_LEGS_PASS],
-    [...PLAYER_TOP, ...PLAYER_LEGS_HALF_R],
-    [...PLAYER_TOP, ...PLAYER_LEGS_R],
-  ],
-  back: [
-    [...PLAYER_TOP_BACK, ...PLAYER_LEGS_IDLE],
-    [...PLAYER_TOP_BACK, ...PLAYER_LEGS_L],
-    [...PLAYER_TOP_BACK, ...PLAYER_LEGS_HALF_L],
-    [...PLAYER_TOP_BACK_LOW, ...PLAYER_LEGS_PASS],
-    [...PLAYER_TOP_BACK, ...PLAYER_LEGS_HALF_R],
-    [...PLAYER_TOP_BACK, ...PLAYER_LEGS_R],
-  ],
-};
+// walk frame 2/4 — passing: swing knee tucks up, foot reaching forward.
+const SIDE_LEGS_WALK_2 = [
+  "____________kk__________",
+  "____________k___________",
+  "____________kk__________",
+  "____________k_k_________",
+  "____________k_kkkk______",
+  "____________k___________",
+  "____________k___________",
+  "____________k___________",
+  "____________k___________",
+  "____________k___________",
+  "____________k___________",
+  "____________k___________",
+  "____________kk__________",
+  "________________________",
+  "________________________",
+  "________________________",
+  "________________________",
+];
 
-// A footfall plays these poses in order across one tile-step. Alternating
-// left/right footfalls make the walk ping-pong through the six poses.
-// To add detail, insert more poses above and lengthen these sequences.
-export const PLAYER_STEP_SEQUENCE: { left: number[]; right: number[] } = {
-  left: [1, 2, 3, 4], // contact L · half L · passing · half R
-  right: [5, 4, 3, 2], // contact R · half R · passing · half L
+// walk frame 3/4 — stride again, trailing shin a touch higher. TAP.
+const SIDE_LEGS_WALK_3 = [
+  "___________k__k_________",
+  "__________k___k_________",
+  "__________k___k_________",
+  "_________k____k_________",
+  "________k_____k_________",
+  "_____kkkk_____k_________",
+  "_____k________k_________",
+  "______________k_________",
+  "______________k_________",
+  "______________k_________",
+  "______________k_________",
+  "______________k_________",
+  "______________k_________",
+  "______________kk________",
+  "________________________",
+  "________________________",
+  "________________________",
+  "________________________",
+];
+
+// walk frame 4/4 — passing, the reaching foot a touch lower than 2/4.
+const SIDE_LEGS_WALK_4 = [
+  "____________kk__________",
+  "____________k___________",
+  "____________k___________",
+  "____________kk__________",
+  "____________k_k_________",
+  "____________k_kkk_______",
+  "____________k___________",
+  "____________k___________",
+  "____________k___________",
+  "____________k___________",
+  "____________k___________",
+  "____________k___________",
+  "____________kk__________",
+  "________________________",
+  "________________________",
+  "________________________",
+  "________________________",
+];
+
+// ---- The assembled views. `walk` arrays are the temporal sequence. -----
+
+export type PlayerView = { idle: string[]; walk: string[][] };
+
+export const PLAYER_FRAMES: {
+  front: PlayerView;
+  back: PlayerView;
+  side: PlayerView;
+} = {
+  front: {
+    idle: [...PLAYER_TOP, ...LEGS_IDLE],
+    walk: [
+      [...PLAYER_TOP, ...LEGS_WALK_1], // 1 · contact L · TIP
+      [...PLAYER_TOP_LOW, ...LEGS_WALK_2], // 2 · passing
+      [...PLAYER_TOP, ...LEGS_WALK_3], // 3 · contact R · TAP
+      [...PLAYER_TOP_LOW, ...LEGS_WALK_4], // 4 · passing
+    ],
+  },
+  back: {
+    idle: [...PLAYER_TOP_BACK, ...LEGS_IDLE],
+    walk: [
+      [...PLAYER_TOP_BACK, ...LEGS_WALK_1], // 1 · contact L · TIP
+      [...PLAYER_TOP_BACK_LOW, ...LEGS_WALK_2], // 2 · passing
+      [...PLAYER_TOP_BACK, ...LEGS_WALK_3], // 3 · contact R · TAP
+      [...PLAYER_TOP_BACK_LOW, ...LEGS_WALK_4], // 4 · passing
+    ],
+  },
+  side: {
+    idle: [...PLAYER_TOP_SIDE, ...SIDE_LEGS_IDLE],
+    walk: [
+      [...PLAYER_TOP_SIDE, ...SIDE_LEGS_WALK_1], // 1 · stride · TIP
+      [...PLAYER_TOP_SIDE_LOW, ...SIDE_LEGS_WALK_2], // 2 · passing
+      [...PLAYER_TOP_SIDE, ...SIDE_LEGS_WALK_3], // 3 · stride · TAP
+      [...PLAYER_TOP_SIDE_LOW, ...SIDE_LEGS_WALK_4], // 4 · passing
+    ],
+  },
 };
 
 function drawSprite(

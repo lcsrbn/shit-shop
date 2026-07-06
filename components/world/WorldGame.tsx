@@ -6,7 +6,6 @@ import { useCart } from "@/lib/cart";
 import {
   PALETTE,
   PLAYER_FRAMES,
-  PLAYER_STEP_SEQUENCE,
   SPRITES,
   roomToDataUrl,
   spriteToDataUrl,
@@ -175,16 +174,16 @@ export default function WorldGame({
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [urls, setUrls] = useState<Record<SpriteName, string> | null>(null);
-  const [playerUrls, setPlayerUrls] = useState<{
-    front: string[];
-    back: string[];
-  } | null>(null);
+  const [playerUrls, setPlayerUrls] = useState<Record<
+    "front" | "back" | "side",
+    { idle: string; walk: string[] }
+  > | null>(null);
   const [roomUrls, setRoomUrls] = useState<Record<string, string> | null>(null);
   const [starUrl, setStarUrl] = useState<string | null>(null);
   const [facing, setFacing] = useState<"left" | "right" | "up" | "down">(
     "down"
   );
-  const [walkFrame, setWalkFrame] = useState(0); // index into PLAYER_FRAMES
+  const [walkFrame, setWalkFrame] = useState(-1); // -1 idle · else index into walk[]
   const [footWord, setFootWord] = useState<"TIP" | "TAP" | null>(null);
 
   const strideRef = useRef(0);
@@ -218,8 +217,18 @@ export default function WorldGame({
     ]);
     setUrls(Object.fromEntries(entries));
     setPlayerUrls({
-      front: PLAYER_FRAMES.front.map(spriteToDataUrl),
-      back: PLAYER_FRAMES.back.map(spriteToDataUrl),
+      front: {
+        idle: spriteToDataUrl(PLAYER_FRAMES.front.idle),
+        walk: PLAYER_FRAMES.front.walk.map(spriteToDataUrl),
+      },
+      back: {
+        idle: spriteToDataUrl(PLAYER_FRAMES.back.idle),
+        walk: PLAYER_FRAMES.back.walk.map(spriteToDataUrl),
+      },
+      side: {
+        idle: spriteToDataUrl(PLAYER_FRAMES.side.idle),
+        walk: PLAYER_FRAMES.side.walk.map(spriteToDataUrl),
+      },
     });
 
     setRoomUrls(
@@ -281,10 +290,10 @@ export default function WorldGame({
     if (stepTimerRef.current) window.clearTimeout(stepTimerRef.current);
   }
 
-  // One step: move, face the direction walked, and play the gait. Each
-  // footfall runs a four-pose sub-sequence across the step (contact →
-  // half → passing → half), alternating left/right so the walk scissors
-  // smoothly. Idle when the walking stops. Each footfall says its name.
+  // One step: move, face the direction walked, and play the gait. The
+  // walk frames live in PLAYER_FRAMES in temporal order; each footfall
+  // plays half the cycle, so alternating steps run it start to finish.
+  // Idle when the walking stops. Each footfall says its name: TIP, TAP.
   function stepTo(next: Pt) {
     if (next.x < pos.x) setFacing("left");
     else if (next.x > pos.x) setFacing("right");
@@ -293,27 +302,31 @@ export default function WorldGame({
 
     setPos(next);
 
-    strideRef.current = strideRef.current === 0 ? 1 : 0;
-    const left = strideRef.current === 0;
-    const seq = left ? PLAYER_STEP_SEQUENCE.left : PLAYER_STEP_SEQUENCE.right;
+    const cycleLen = PLAYER_FRAMES.front.walk.length; // same in every view
+    const half = cycleLen / 2;
 
-    setFootWord(left ? "TIP" : "TAP");
-    playFootstep(left);
+    strideRef.current = strideRef.current === 0 ? 1 : 0;
+    const first = strideRef.current === 0;
+
+    setFootWord(first ? "TIP" : "TAP");
+    playFootstep(first);
 
     clearGaitTimers();
-    const frameMs = STEP_MS / seq.length;
-    seq.forEach((frame, i) => {
+    const start = first ? 0 : half;
+    const frameMs = STEP_MS / half;
+
+    for (let i = 0; i < half; i++) {
       if (i === 0) {
-        setWalkFrame(frame);
-        return;
+        setWalkFrame(start);
+        continue;
       }
       seqTimersRef.current.push(
-        window.setTimeout(() => setWalkFrame(frame), frameMs * i)
+        window.setTimeout(() => setWalkFrame(start + i), frameMs * i)
       );
-    });
+    }
 
     stepTimerRef.current = window.setTimeout(() => {
-      setWalkFrame(0);
+      setWalkFrame(-1);
       setFootWord(null);
     }, STEP_MS + 110);
   }
@@ -784,11 +797,15 @@ export default function WorldGame({
             {playerUrls && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={
-                  (facing === "up" ? playerUrls.back : playerUrls.front)[
-                    walkFrame
-                  ]
-                }
+                src={(() => {
+                  const view =
+                    facing === "up"
+                      ? playerUrls.back
+                      : facing === "down"
+                        ? playerUrls.front
+                        : playerUrls.side;
+                  return walkFrame < 0 ? view.idle : view.walk[walkFrame];
+                })()}
                 alt="you"
                 draggable={false}
                 style={{
